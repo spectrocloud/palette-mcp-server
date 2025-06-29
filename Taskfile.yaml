@@ -1,0 +1,30 @@
+version: "3"
+
+tasks:
+  start:
+    desc: "Start the agent server"
+    dir: src/
+    dotenv: [.env, ../.env]
+    cmds:
+      - echo "Starting Palette MCP Server"
+      - uv run fastmcp run server.py
+
+  # stop:
+  #     desc: 'Stop the agent server'
+  #     cmds:
+  #         - echo "Stopping agent server"
+  #         - ps aux | grep 'uvicorn server:app' | grep -v grep | awk '{print $2}' | xargs kill -9
+
+  mcp-inspect:
+    desc: "Inspect the MCP server using the MCP Inspector"
+    dotenv: [.env, ../.env]
+    dir: src/
+    cmds:
+      - echo "Inspecting MCP server"
+      - |
+        CLIENT_PORT=9500 SERVER_PORT=9600 \
+        npx @modelcontextprotocol/inspector \
+        -e SPECTROCLOUD_APIKEY=$SPECTROCLOUD_APIKEY \
+        -e MCP_INSPECTOR=true \
+        -e PHOENIX_COLLECTOR_ENDPOINT=$PHOENIX_COLLECTOR_ENDPOINT \
+        uv run server.py
