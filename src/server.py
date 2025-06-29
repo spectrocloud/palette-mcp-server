@@ -1,17 +1,16 @@
 from typing import Any
-import os, sys, logging
-from phoenix.otel import register
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-
-from mcp.server.fastmcp import FastMCP
+import os, logging
+from fastmcp import FastMCP
 from tools import getClusters, getActiveClusters, getClusterDetailsByUID, deleteClusterByUID, getAdminKubeconfig, getKubeconfig, getPodsInCluster, analyzeCluster, prepareUnhealthyClusterNotificationMessage, sendSlackNotificationForUnhealthyCluster
 
-# Phoenix tracing configuration
+ 
 phoenix_endpoint = os.environ.get('PHOENIX_COLLECTOR_ENDPOINT')
 if not phoenix_endpoint:
     print("Phoenix collector endpoint is not set. Please set the PHOENIX_COLLECTOR_ENDPOINT environment variable for tracing.")
 else:
+    from phoenix.otel import register
+    from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
     tracer_provider = register(
         project_name="palette-mcp-server",
         endpoint=phoenix_endpoint,
@@ -23,7 +22,7 @@ logger = logging.getLogger('palette_mcp_server')
 logger.info("Starting Palette MCP Server")
 mcp = FastMCP("Palette MCP Server")
 
-# Register tools here
+# # Register tools here
 TOOLS = [
     getClusters,
     getActiveClusters,

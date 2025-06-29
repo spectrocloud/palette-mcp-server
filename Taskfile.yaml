@@ -28,3 +28,18 @@ tasks:
         -e MCP_INSPECTOR=true \
         -e PHOENIX_COLLECTOR_ENDPOINT=$PHOENIX_COLLECTOR_ENDPOINT \
         uv run server.py
+
+  mcp-cli-test:
+    desc: "Test the MCP server using CLI mode"
+    dotenv: [.env, ../.env]
+    env:
+      DANGEROUSLY_OMIT_AUTH: true
+    cmds:
+      - echo "Testing MCP server with CLI..."
+      - echo "📋 Listing all available tools:"
+      - |
+        npx @modelcontextprotocol/inspector --cli \
+        -e SPECTROCLOUD_APIKEY=$SPECTROCLOUD_APIKEY \
+        -e MCP_INSPECTOR=true \
+        -e PHOENIX_COLLECTOR_ENDPOINT=$PHOENIX_COLLECTOR_ENDPOINT \
+        uv run src/server.py --method tools/list
