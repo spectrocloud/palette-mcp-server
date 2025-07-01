@@ -14,10 +14,19 @@ The following items are required to use the Palette MCP server:
 - A Palette API key. Check out the [Create API Key](https://docs.spectrocloud.com/user-management/authentication/api-key/create-api-key/) guide for additional guidance.
 - [Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/getting-started/installation) installed on your machine.
 - Network access to the Palette API from your machine.
+- A pre-existing folder to store the kubeconfig file on the host machine. This is optional but improves the experience when retrieving Kubeconfig files. The configuations below assumes the host machine folder is `/tmp/kubeconfig` but you can use any folder you prefer. For example, you can use the `~/.kube` folder.
+
+> [!IMPORTANT]
+> If you are using Docker, you must enable resource sharing for the container. This is required to allow the container to access the host machine's kubeconfig file. Refer to [Virtual file shares](https://docs.docker.com/desktop/settings-and-maintenance/settings/#virtual-file-shares) for steps on how to setup.
+
+```json
+        "-v",
+        "~/.kube/:/tmp/kubeconfig",
+```
 
 ### Cursor
 
-To use the Palette MCP server in Cursor, you can add the following to your `.cursor/mcp.json` file. If you don't want to use Docker, swap out the `docker` command for `podman` in the `command` field.
+To use the Palette MCP server in Cursor, you can add the following to your `$HOME/.cursor/mcp.json` file. If you don't want to use Docker, swap out the `docker` command for `podman` in the `command` field.
 
 ```json
 {
@@ -30,6 +39,8 @@ To use the Palette MCP server in Cursor, you can add the following to your `.cur
         "--name",
         "palette-mcp-cursors",
         "-i",
+        "-v",
+        "/tmp/kubeconfig:/tmp/kubeconfig",
         "-e",
         "SPECTROCLOUD_HOST=api.spectrocloud.com",
         "-e",
@@ -60,6 +71,8 @@ To use the Palette MCP server in Claude Desktop, you can add the following to yo
         "--name",
         "palette-mcp-claude",
         "-i",
+        "-v",
+        "/tmp/kubeconfig:/tmp/kubeconfig",
         "-e",
         "SPECTROCLOUD_HOST=api.spectrocloud.com",
         "-e",
@@ -77,11 +90,25 @@ To use the Palette MCP server in Claude Desktop, you can add the following to yo
 
 ### Validate
 
-You can validate that the MCP server is working by issuing a prompt that uses the Palette MCP server tools. For example, you can issue the following prompt:
+Open up the application you configured to use the Palette MCP server. Issue the following command to ensure the container is active:
 
 ```shell
-Can you use the Palette MCP server to tell me how many clusters I have that are active?
+docker ps | grep palette-mcp
 ```
+
+For example, if you are using Cursor, an output similar to the following should be displayed:
+
+```shell
+de70907c4b6f   public.ecr.aws/palette-ai/palette-mcp-server:dev   "uv run python src/s…"   2 minutes ago   Up 2 minutes             palette-mcp-cursor
+```
+
+Next, issue a prompt that uses the Palette MCP server tools. For example, you can issue the following command:
+
+```shell
+Can you use help me identify how many active clusters I have in Palette?
+```
+
+Some applications may require your approval to use the Palette MCP server tools.
 
 ## Development
 

@@ -24,7 +24,9 @@ def write_kubeconfig_to_temp(cluster_uid: str, kubeconfig_content: str) -> str:
         str: Path to the written kubeconfig file
     """
     temp_dir = tempfile.gettempdir()
-    kubeconfig_path = os.path.join(temp_dir, f"{cluster_uid}.kubeconfig")
+    kubeconfig_dir = os.path.join(temp_dir, "kubeconfig")
+    os.makedirs(kubeconfig_dir, exist_ok=True)
+    kubeconfig_path = os.path.join(kubeconfig_dir, f"{cluster_uid}.kubeconfig")
     with open(kubeconfig_path, 'w') as f:
         f.write(kubeconfig_content)
     return kubeconfig_path
@@ -34,12 +36,27 @@ def cleanup_temp_files():
     """Clean up temporary kubeconfig files created by the server"""
     try:
         temp_dir = tempfile.gettempdir()
-        # Find all kubeconfig files created by this server
-        kubeconfig_pattern = os.path.join(temp_dir, "*.kubeconfig")
-        kubeconfig_files = glob.glob(kubeconfig_pattern)
-        
         cleaned_count = 0
-        for file_path in kubeconfig_files:
+        
+        # Clean up kubeconfig files in the subdirectory (current version)
+        kubeconfig_dir = os.path.join(temp_dir, "kubeconfig")
+        if os.path.exists(kubeconfig_dir):
+            kubeconfig_pattern = os.path.join(kubeconfig_dir, "*.kubeconfig")
+            kubeconfig_files = glob.glob(kubeconfig_pattern)
+            
+            for file_path in kubeconfig_files:
+                try:
+                    os.remove(file_path)
+                    cleaned_count += 1
+                except OSError:
+                    # File might already be deleted or in use, skip silently
+                    pass
+        
+        # Clean up legacy kubeconfig files directly in temp directory (previous version)
+        legacy_pattern = os.path.join(temp_dir, "*.kubeconfig")
+        legacy_files = glob.glob(legacy_pattern)
+        
+        for file_path in legacy_files:
             try:
                 os.remove(file_path)
                 cleaned_count += 1
