@@ -9,6 +9,7 @@ class PaletteConfig:
     host: str
     apikey: str
     default_project_id: Optional[str] = None
+    allow_dangerous_actions: bool = False
 
 @dataclass
 class Kubeconfig:
@@ -35,7 +36,8 @@ class MCPSessionContext:
         "config": {
             "host": "api.spectrocloud.com",
             "apikey": "palette_***************abc123",
-            "default_project_id": "6356fc6e381bfda21b2859c6"
+            "default_project_id": "6356fc6e381bfda21b2859c6",
+            "allow_dangerous_actions": true
         },
         "kubeconfig": {
             "path": "/tmp/kubeconfig_cluster_abc123.yaml"
@@ -46,16 +48,18 @@ class MCPSessionContext:
     - session_ctx.config.host
     - session_ctx.config.apikey
     - session_ctx.config.default_project_id
+    - session_ctx.config.allow_dangerous_actions
     - session_ctx.kubeconfig.path
     - session_ctx.kubeconfig.set_path(path)
     - session_ctx.kubeconfig.is_set()
     """
     
-    def __init__(self, host: str, apikey: str, default_project_id: Optional[str] = None):
+    def __init__(self, host: str, apikey: str, default_project_id: Optional[str] = None, allow_dangerous_actions: bool = False):
         self.config = PaletteConfig(
             host=host,
             apikey=apikey,
-            default_project_id=default_project_id
+            default_project_id=default_project_id,
+            allow_dangerous_actions=allow_dangerous_actions
         )
         self.kubeconfig = Kubeconfig()
     
@@ -70,3 +74,7 @@ class MCPSessionContext:
     def get_host(self) -> str:
         """Get Palette host"""
         return self.config.host 
+    
+    def is_dangerous_actions_allowed(self) -> bool:
+        """Check if dangerous actions are allowed"""
+        return self.config.allow_dangerous_actions 

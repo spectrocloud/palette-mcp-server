@@ -9,7 +9,7 @@
 
 
 COMMAND="uv"
-ARGS="run python src/server.py"
+ARGS=("run" "python" "src/server.py")
 
 echo "🚀 Starting Palette MCP Server Inspector..."
 echo "📁 Using current directory: $(pwd)"
@@ -52,19 +52,26 @@ fi
 # Set environment variables
 export DANGEROUSLY_OMIT_AUTH="true"
 
+# Set default for ALLOW_DANGEROUS_ACTIONS if not set
+if [ -z "${ALLOW_DANGEROUS_ACTIONS}" ]; then
+    export ALLOW_DANGEROUS_ACTIONS="0"
+fi
+
 echo "🔍 Starting MCP Inspector..."
-echo "   Command: ${COMMAND} ${ARGS}"
+echo "   Command: ${COMMAND} ${ARGS[*]}"
 echo "   Project ID: ${SPECTROCLOUD_DEFAULT_PROJECT_ID}"
 echo "   Phoenix Endpoint: ${PHOENIX_COLLECTOR_ENDPOINT}"
 echo "   Auth Disabled: ${DANGEROUSLY_OMIT_AUTH}"
+echo "   Dangerous Actions: ${ALLOW_DANGEROUS_ACTIONS}"
 echo ""
 echo "📖 Inspector will be available at: http://localhost:6274"
 echo "🛑 Press Ctrl+C to stop the inspector"
 echo ""
 
 # Start the MCP Inspector
-npx @modelcontextprotocol/inspector \
+exec npx @modelcontextprotocol/inspector \
     -e "SPECTROCLOUD_PROJECT_ID=${SPECTROCLOUD_DEFAULT_PROJECT_ID}" \
     -e "SPECTROCLOUD_APIKEY=${SPECTROCLOUD_APIKEY}" \
     -e "PHOENIX_COLLECTOR_ENDPOINT=${PHOENIX_COLLECTOR_ENDPOINT}" \
-    "${COMMAND}" "${ARGS}" 
+    -e "ALLOW_DANGEROUS_ACTIONS=${ALLOW_DANGEROUS_ACTIONS}" \
+    -- uv run python src/server.py 
