@@ -1,7 +1,7 @@
 from typing import Any
 import os, logging
 from fastmcp import FastMCP, Context
-from context import PaletteContext
+from context import MCPSessionContext
 from tools import getClusters, getActiveClusters, getClusterDetailsByUID, deleteClusterByUID, getAdminKubeconfig, getKubeconfig, getPodsInCluster, analyzeCluster, prepareUnhealthyClusterNotificationMessage, sendSlackNotificationForUnhealthyCluster
 
 
@@ -42,8 +42,8 @@ else:
   
 mcp = FastMCP("Palette MCP Server")
 
-# Create and store our custom Palette context
-mcp.palette_context = PaletteContext(
+# Create and store our custom MCP session context
+mcp.session_context = MCPSessionContext(
     host=palette_host,
     apikey=palette_apikey,
     default_project_id=default_project_id

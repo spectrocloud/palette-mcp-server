@@ -7,7 +7,7 @@ from kubernetes import client, config
 from datetime import datetime, timedelta
 import pytz
 from fastmcp import Context
-from context import PaletteContext
+from context import MCPSessionContext
 from helpers import (
     write_kubeconfig_to_temp,
     create_span,
@@ -17,9 +17,9 @@ from helpers import (
     safe_set_status,
 )
 
-def get_palette_context(ctx: Context) -> PaletteContext:
-    """Helper function to get our custom Palette context from FastMCP context"""
-    return ctx.fastmcp.palette_context
+def get_session_context(ctx: Context) -> MCPSessionContext:
+    """Helper function to get our custom MCP session context from FastMCP context"""
+    return ctx.fastmcp.session_context
 
 
 """
@@ -73,13 +73,13 @@ def mask_sensitive_data(data: Dict[str, Any]) -> Dict[str, Any]:
 """
 async def getClusters(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Queries the Palette API to find all clusters in a given project."""
-    # Get our custom Palette context
-    palette_ctx = get_palette_context(ctx)
+    # Get our custom MCP session context
+    session_ctx = get_session_context(ctx)
     
     # Use values from context.config, with optional overrides
-    api_key = palette_ctx.get_api_key(api_key)
-    project_id = palette_ctx.get_project_id(project_id)
-    palette_host = palette_ctx.get_host()
+    api_key = session_ctx.get_api_key(api_key)
+    project_id = session_ctx.get_project_id(project_id)
+    palette_host = session_ctx.get_host()
     
     if not api_key:
         return {
@@ -176,13 +176,13 @@ async def getActiveClusters(ctx: Context, project_id: Optional[str] = None, api_
     Returns:
         MCPResult: Result object containing active cluster metadata or error information
     """
-    # Get our custom Palette context
-    palette_ctx = get_palette_context(ctx)
+    # Get our custom MCP session context
+    session_ctx = get_session_context(ctx)
     
     # Use values from context.config, with optional overrides
-    api_key = palette_ctx.get_api_key(api_key)
-    project_id = palette_ctx.get_project_id(project_id)
-    palette_host = palette_ctx.get_host()
+    api_key = session_ctx.get_api_key(api_key)
+    project_id = session_ctx.get_project_id(project_id)
+    palette_host = session_ctx.get_host()
     
     if not api_key:
         return {
@@ -321,13 +321,13 @@ async def getActiveClusters(ctx: Context, project_id: Optional[str] = None, api_
 
 async def getClusterDetailsByUID(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Queries the Palette API to find detailed information about a specific cluster."""
-    # Get our custom Palette context
-    palette_ctx = get_palette_context(ctx)
+    # Get our custom MCP session context
+    session_ctx = get_session_context(ctx)
     
     # Use values from context.config, with optional overrides
-    api_key = palette_ctx.get_api_key(api_key)
-    project_id = palette_ctx.get_project_id(project_id)
-    palette_host = palette_ctx.get_host()
+    api_key = session_ctx.get_api_key(api_key)
+    project_id = session_ctx.get_project_id(project_id)
+    palette_host = session_ctx.get_host()
     
     if not api_key:
         return {
@@ -392,13 +392,13 @@ async def getClusterDetailsByUID(ctx: Context, cluster_uid: str, project_id: Opt
 
 async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Deletes a specific cluster using its UID."""
-    # Get our custom Palette context
-    palette_ctx = get_palette_context(ctx)
+    # Get our custom MCP session context
+    session_ctx = get_session_context(ctx)
     
     # Use values from context.config, with optional overrides
-    api_key = palette_ctx.get_api_key(api_key)
-    project_id = palette_ctx.get_project_id(project_id)
-    palette_host = palette_ctx.get_host()
+    api_key = session_ctx.get_api_key(api_key)
+    project_id = session_ctx.get_project_id(project_id)
+    palette_host = session_ctx.get_host()
     
     if not api_key:
         return {
@@ -465,13 +465,13 @@ async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optiona
 
 async def getAdminKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Gets the admin kubeconfig file for a specific cluster."""
-    # Get our custom Palette context
-    palette_ctx = get_palette_context(ctx)
+    # Get our custom MCP session context
+    session_ctx = get_session_context(ctx)
     
     # Use values from context.config, with optional overrides
-    api_key = palette_ctx.get_api_key(api_key)
-    project_id = palette_ctx.get_project_id(project_id)
-    palette_host = palette_ctx.get_host()
+    api_key = session_ctx.get_api_key(api_key)
+    project_id = session_ctx.get_project_id(project_id)
+    palette_host = session_ctx.get_host()
     
     if not api_key:
         return {
@@ -532,6 +532,8 @@ async def getAdminKubeconfig(ctx: Context, cluster_uid: str, project_id: Optiona
             # Write kubeconfig to temp directory with cluster UID
             try:
                 kubeconfig_path = write_kubeconfig_to_temp(cluster_uid, result["admin_kubeconfig"])
+                # Set the kubeconfig path in context
+                session_ctx.kubeconfig.set_path(kubeconfig_path)
             except Exception as e:
                 print(f"Warning: Failed to write kubeconfig to temp file: {str(e)}")
                 kubeconfig_path = None
@@ -558,13 +560,13 @@ async def getAdminKubeconfig(ctx: Context, cluster_uid: str, project_id: Optiona
 
 async def getKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Gets the regular (non-admin) kubeconfig file for a specific cluster.  Preferably use getAdminKubeconfig instead."""
-    # Get our custom Palette context
-    palette_ctx = get_palette_context(ctx)
+    # Get our custom MCP session context
+    session_ctx = get_session_context(ctx)
     
     # Use values from context.config, with optional overrides
-    api_key = palette_ctx.get_api_key(api_key)
-    project_id = palette_ctx.get_project_id(project_id)
-    palette_host = palette_ctx.get_host()
+    api_key = session_ctx.get_api_key(api_key)
+    project_id = session_ctx.get_project_id(project_id)
+    palette_host = session_ctx.get_host()
     
     if not api_key:
         return {
@@ -614,6 +616,8 @@ async def getKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str
             # Write kubeconfig to temp directory with cluster UID
             try:
                 kubeconfig_path = write_kubeconfig_to_temp(cluster_uid, data.decode("utf-8"))
+                # Set the kubeconfig path in context
+                session_ctx.kubeconfig.set_path(kubeconfig_path)
             except Exception as e:
                 print(f"Warning: Failed to write kubeconfig to temp file: {str(e)}")
                 kubeconfig_path = None
@@ -639,22 +643,34 @@ async def getKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str
                 "isError": True
             }
 
-async def getPodsInCluster(kubeconfig_path: str) -> MCPResult:
+async def getPodsInCluster(ctx: Context, kubeconfig_path: Optional[str] = None) -> MCPResult:
     """Gets all the pods in a specific Kubernetes cluster.
     
     Args:
-        kubeconfig_path (str): Path to the kubeconfig file
+        kubeconfig_path (str): Path to the kubeconfig file (optional, uses path from context if not provided)
         
     Returns:
         MCPResult: List of pods in the cluster with their status
     """
+    # Get our custom MCP session context
+    session_ctx = get_session_context(ctx)
+    
+    # Use kubeconfig path from context if not provided
+    if not kubeconfig_path:
+        kubeconfig_path = session_ctx.kubeconfig.path
+    
+    if not kubeconfig_path:
+        return {
+            "content": [{"type": "text", "text": "Error: No kubeconfig_path provided and no kubeconfig path set in context"}],
+            "isError": True
+        }
     with create_span("getPodsInCluster") as span:
         safe_set_tool(
             span,
             name="getPodsInCluster",
             description="Gets the pods in a specific Kubernetes cluster",
             parameters={
-                "kubeconfig_path": {"type": "string", "description": "Path to the kubeconfig file"}
+                "kubeconfig_path": {"type": "string", "description": "Path to the kubeconfig file (optional, uses path from context if not provided)"}
             }
         )
         
@@ -732,22 +748,34 @@ async def getPodsInCluster(kubeconfig_path: str) -> MCPResult:
                 "isError": True
             }
 
-async def analyzeCluster(kubeconfig_path: str) -> MCPResult:
+async def analyzeCluster(ctx: Context, kubeconfig_path: Optional[str] = None) -> MCPResult:
     """Analyzes a Kubernetes cluster using k8sgpt The output contains the explaination of issues in the cluster. You can use the  output to help formualte a message to the user that better helps them understand the issues in the cluster.
     
     Args:
-        kubeconfig_path (str): Path to the kubeconfig file
+        kubeconfig_path (str): Path to the kubeconfig file (optional, uses path from context if not provided)
         
     Returns:
         MCPResult: Analysis results from k8sgpt
     """
+    # Get our custom MCP session context
+    session_ctx = get_session_context(ctx)
+    
+    # Use kubeconfig path from context if not provided
+    if not kubeconfig_path:
+        kubeconfig_path = session_ctx.kubeconfig.path
+    
+    if not kubeconfig_path:
+        return {
+            "content": [{"type": "text", "text": "Error: No kubeconfig_path provided and no kubeconfig path set in context"}],
+            "isError": True
+        }
     with create_span("analyzeCluster") as span:
         safe_set_tool(
             span,
             name="analyzeCluster",
             description="Analyzes a Kubernetes cluster using k8sgpt analyze --explain",
             parameters={
-                "kubeconfig_path": {"type": "string", "description": "Path to the kubeconfig file"}
+                "kubeconfig_path": {"type": "string", "description": "Path to the kubeconfig file (optional, uses path from context if not provided)"}
             }
         )
         
