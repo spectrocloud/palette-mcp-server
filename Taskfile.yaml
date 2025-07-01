@@ -1,0 +1,62 @@
+version: "3"
+
+tasks:
+  start:
+    desc: "Start the agent server"
+    dir: src/
+    dotenv: [.env, ../.env]
+    cmds:
+      - echo "Starting Palette MCP Server"
+      - uv run python server.py
+
+  start-debug:
+    desc: "Start the MCP server and Phoenix A"
+    dir: src/
+    dotenv: [.env, ../.env]
+    cmds:
+      - echo "Checking Phoenix container status"
+      - |
+        if docker ps -q --filter "name=ai-phoenix" | grep -q .; then
+          echo "Phoenix container is already running"
+        elif docker ps -aq --filter "name=ai-phoenix" | grep -q .; then
+          echo "Starting existing Phoenix container"
+          docker start ai-phoenix
+        else
+          echo "Starting Phoenix container"
+          docker run --rm -d -p 6006:6006 --name ai-phoenix arizephoenix/phoenix:latest
+        fi
+      - echo "Starting Palette MCP Server"
+      - uv run python server.py
+
+  mcp-inspect:
+    desc: "Inspect the MCP server using the MCP Inspector"
+    dotenv: [.env, ../.env]
+    cmds:
+      - ./scripts/start-mcp-inspector.sh
+
+  mcp-cli-test:
+    desc: "Test the MCP server using CLI mode"
+    dotenv: [.env, ../.env]
+    env:
+      DANGEROUSLY_OMIT_AUTH: true
+    cmds:
+      - echo "Testing MCP server with CLI..."
+      - echo "📋 Listing all available tools:"
+      - |
+        npx @modelcontextprotocol/inspector --cli \
+        -e SPECTROCLOUD_APIKEY=$SPECTROCLOUD_APIKEY \
+        -e MCP_INSPECTOR=true \
+        -e PHOENIX_COLLECTOR_ENDPOINT=$PHOENIX_COLLECTOR_ENDPOINT \
+        uv run src/server.py --method tools/list
+
+  build-image:
+    desc: "Build the Docker image. Example: task build-image -- dev"
+    cmds:
+      - docker buildx create --name multiarch --use || true
+      - docker buildx build --platform linux/amd64,linux/arm64 -t public.ecr.aws/palette-ai/palette-mcp-server:{{.CLI_ARGS}}  . --push
+      - docker buildx rm multiarch || true
+
+  ecr-login:
+    desc: "Login to ECR using Palette AI AWS account"
+    cmds:
+      - aws ecr-public get-login-password --region us-east-1 --profile ai | docker login --username AWS --password-stdin public.ecr.aws/palette-ai || true
