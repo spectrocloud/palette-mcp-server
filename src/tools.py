@@ -1,4 +1,3 @@
-from opentelemetry import trace
 import http.client
 import json
 from typing import Dict, TypedDict, Any, List, Optional, Union
@@ -6,7 +5,7 @@ from pydantic import BaseModel
 from kubernetes import client, config
 from datetime import datetime, timedelta
 import pytz
-from fastmcp import Context
+from fastmcp import FastMCP, Context
 from context import MCPSessionContext
 from helpers import (
     write_kubeconfig_to_temp,
@@ -65,6 +64,20 @@ def mask_sensitive_data(data: Dict[str, Any]) -> Dict[str, Any]:
         api_key = masked['api_key']
         masked['api_key'] = f"{'*' * (len(api_key) - 8)}{api_key[-8:]}" if len(api_key) > 8 else api_key
     return masked
+
+def safe_set_span_status(span, status_code: str, description: str = None):
+    """Helper to safely set span status without importing trace when Phoenix is not configured"""
+    if span is None:
+        return
+    try:
+        from opentelemetry import trace
+        if status_code == "OK":
+            safe_set_status(span, trace.Status(trace.StatusCode.OK))
+        elif status_code == "ERROR":
+            safe_set_status(span, trace.Status(trace.StatusCode.ERROR, description or ""))
+    except ImportError:
+        # OpenTelemetry not available, skip
+        pass
 
 
 """
@@ -149,7 +162,7 @@ async def getClusters(ctx: Context, project_id: Optional[str] = None, api_key: O
 
             result = {"clusters": {'items': all_clusters}}
             safe_set_output(span, result)
-            safe_set_status(span, trace.Status(trace.StatusCode.OK))
+            safe_set_span_status(span, "OK")
             
             return {
                 "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
@@ -159,7 +172,7 @@ async def getClusters(ctx: Context, project_id: Optional[str] = None, api_key: O
         except Exception as e:
             error_message = f"Error during API call: {str(e)}"
             safe_set_output(span, {"error": error_message})
-            safe_set_status(span, trace.Status(trace.StatusCode.ERROR, str(e)))
+            safe_set_span_status(span, "ERROR", str(e))
             
             return {
                 "content": [{"type": "text", "text": error_message}],
@@ -302,7 +315,7 @@ async def getActiveClusters(ctx: Context, project_id: Optional[str] = None, api_
 
             result = {"clusters": {'items': active_clusters}}
             safe_set_output(span, result)
-            safe_set_status(span, trace.Status(trace.StatusCode.OK))
+            safe_set_span_status(span, "OK")
             
             return {
                 "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
@@ -312,7 +325,7 @@ async def getActiveClusters(ctx: Context, project_id: Optional[str] = None, api_
         except Exception as e:
             error_message = f"Error during API call: {str(e)}"
             safe_set_output(span, {"error": error_message})
-            safe_set_status(span, trace.Status(trace.StatusCode.ERROR, str(e)))
+            safe_set_span_status(span, "ERROR", str(e))
             
             return {
                 "content": [{"type": "text", "text": error_message}],
@@ -383,7 +396,7 @@ async def getClusterDetailsByUID(ctx: Context, cluster_uid: str, project_id: Opt
         except Exception as e:
             error_message = f"Error during API call: {str(e)}"
             safe_set_output(span, {"error": error_message})
-            safe_set_status(span, trace.Status(trace.StatusCode.ERROR, str(e)))
+            safe_set_span_status(span, "ERROR", str(e))
             
             return {
                 "content": [{"type": "text", "text": error_message}],
@@ -456,7 +469,7 @@ async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optiona
         except Exception as e:
             error_message = f"Error during API call: {str(e)}"
             safe_set_output(span, {"error": error_message})
-            safe_set_status(span, trace.Status(trace.StatusCode.ERROR, str(e)))
+            safe_set_span_status(span, "ERROR", str(e))
             
             return {
                 "content": [{"type": "text", "text": error_message}],
@@ -551,7 +564,7 @@ async def getAdminKubeconfig(ctx: Context, cluster_uid: str, project_id: Optiona
         except Exception as e:
             error_message = f"Error during API call: {str(e)}"
             safe_set_output(span, {"error": error_message})
-            safe_set_status(span, trace.Status(trace.StatusCode.ERROR, str(e)))
+            safe_set_span_status(span, "ERROR", str(e))
             
             return {
                 "content": [{"type": "text", "text": error_message}],
@@ -636,7 +649,7 @@ async def getKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str
         except Exception as e:
             error_message = f"Error during API call: {str(e)}"
             safe_set_output(span, {"error": error_message})
-            safe_set_status(span, trace.Status(trace.StatusCode.ERROR, str(e)))
+            safe_set_span_status(span, "ERROR", str(e))
             
             return {
                 "content": [{"type": "text", "text": error_message}],
@@ -741,7 +754,7 @@ async def getPodsInCluster(ctx: Context, kubeconfig_path: Optional[str] = None) 
         except Exception as e:
             error_message = f"Error getting pods: {str(e)}"
             safe_set_output(span, {"error": error_message})
-            safe_set_status(span, trace.Status(trace.StatusCode.ERROR, str(e)))
+            safe_set_span_status(span, "ERROR", str(e))
             
             return {
                 "content": [{"type": "text", "text": error_message}],
@@ -821,7 +834,7 @@ async def analyzeCluster(ctx: Context, kubeconfig_path: Optional[str] = None) ->
         except Exception as e:
             error_message = f"Error analyzing cluster: {str(e)}"
             safe_set_output(span, {"error": error_message})
-            safe_set_status(span, trace.Status(trace.StatusCode.ERROR, str(e)))
+            safe_set_span_status(span, "ERROR", str(e))
             
             return {
                 "content": [{"type": "text", "text": error_message}],
@@ -904,7 +917,7 @@ async def sendSlackNotificationForUnhealthyCluster(message: dict, webhook_url: s
                 "response": data.decode("utf-8")
             }
             safe_set_output(span, result)
-            safe_set_status(span, trace.Status(trace.StatusCode.OK))
+            safe_set_span_status(span, "OK")
             
             return {
                 "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
@@ -914,7 +927,7 @@ async def sendSlackNotificationForUnhealthyCluster(message: dict, webhook_url: s
         except ValueError as ve:
             error_message = f"Invalid message format: {str(ve)}"
             safe_set_output(span, {"error": error_message})
-            safe_set_status(span, trace.Status(trace.StatusCode.ERROR, str(ve)))
+            safe_set_span_status(span, "ERROR", str(ve))
             
             return {
                 "content": [{"type": "text", "text": error_message}],
@@ -923,7 +936,7 @@ async def sendSlackNotificationForUnhealthyCluster(message: dict, webhook_url: s
         except Exception as e:
             error_message = f"Error sending notification: {str(e)}"
             safe_set_output(span, {"error": error_message})
-            safe_set_status(span, trace.Status(trace.StatusCode.ERROR, str(e)))
+            safe_set_span_status(span, "ERROR", str(e))
             
             return {
                 "content": [{"type": "text", "text": error_message}],
@@ -1018,7 +1031,7 @@ async def prepareUnhealthyClusterNotificationMessage(title: str, details: str, c
             }
 
             safe_set_output(span, {"blocks": blocks})
-            safe_set_status(span, trace.Status(trace.StatusCode.OK))
+            safe_set_span_status(span, "OK")
             
             return {
                 "content": [{"type": "text", "text": json.dumps(blocks, indent=2)}],
@@ -1028,7 +1041,7 @@ async def prepareUnhealthyClusterNotificationMessage(title: str, details: str, c
         except Exception as e:
             error_message = f"Error creating notification blocks: {str(e)}"
             safe_set_output(span, {"error": error_message})
-            safe_set_status(span, trace.Status(trace.StatusCode.ERROR, str(e)))
+            safe_set_span_status(span, "ERROR", str(e))
             
             return {
                 "content": [{"type": "text", "text": error_message}],

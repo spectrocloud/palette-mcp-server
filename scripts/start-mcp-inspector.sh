@@ -44,11 +44,6 @@ fi
 
 echo "🔧 Setting environment variables..."
 
-# Load environment variables from .env file
-if [ -f ".env" ]; then
-    source .env
-fi
-
 # Set environment variables
 export DANGEROUSLY_OMIT_AUTH="true"
 
@@ -68,7 +63,7 @@ echo "📖 Inspector will be available at: http://localhost:6274"
 echo "🛑 Press Ctrl+C to stop the inspector"
 echo ""
 
-# Start the MCP Inspector
+Start the MCP Inspector
 exec npx @modelcontextprotocol/inspector \
     -e "SPECTROCLOUD_PROJECT_ID=${SPECTROCLOUD_DEFAULT_PROJECT_ID}" \
     -e "SPECTROCLOUD_APIKEY=${SPECTROCLOUD_APIKEY}" \
