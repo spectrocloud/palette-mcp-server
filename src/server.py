@@ -1,7 +1,8 @@
 from typing import Any
-import os, logging
+import os, logging, signal, sys, atexit
 from fastmcp import FastMCP, Context
 from context import MCPSessionContext
+from helpers import cleanup_temp_files, create_signal_handler
 from tools import getClusters, getActiveClusters, getClusterDetailsByUID, deleteClusterByUID, getAdminKubeconfig, getKubeconfig, getPodsInCluster, analyzeCluster, prepareUnhealthyClusterNotificationMessage, sendSlackNotificationForUnhealthyCluster
 
 
@@ -68,6 +69,18 @@ for tool in TOOLS:
     mcp.tool()(tool)
 
 if __name__ == "__main__":
-    # Initialize and run the server
-    logger.info("Server running with stdio transport")
-    mcp.run(transport='stdio')
+    # Register cleanup function to run on normal exit
+    atexit.register(cleanup_temp_files)
+    signal_handler = create_signal_handler(logger)
+    
+    # Set up signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
+    signal.signal(signal.SIGTERM, signal_handler)  # Container termination
+    
+    try:
+        # Initialize and run the server
+        logger.info("Server running with stdio transport")
+        mcp.run(transport='stdio')
+    except KeyboardInterrupt:
+        # This shouldn't be reached due to signal handler, but just in case
+        signal_handler(signal.SIGINT, None)

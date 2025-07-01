@@ -1,6 +1,9 @@
 import tempfile
 import os
 import json
+import glob
+import signal
+import sys
 from opentelemetry import trace
 
 tracer = trace.get_tracer(__name__)
@@ -20,10 +23,81 @@ def write_kubeconfig_to_temp(cluster_uid: str, kubeconfig_content: str) -> str:
     with open(kubeconfig_path, 'w') as f:
         f.write(kubeconfig_content)
     return kubeconfig_path
-  
-  
-  
-  # Add this helper function near the top, after the tracer definition
+
+
+def cleanup_temp_files():
+    """Clean up temporary kubeconfig files created by the server"""
+    try:
+        temp_dir = tempfile.gettempdir()
+        # Find all kubeconfig files created by this server
+        kubeconfig_pattern = os.path.join(temp_dir, "*.kubeconfig")
+        kubeconfig_files = glob.glob(kubeconfig_pattern)
+        
+        cleaned_count = 0
+        for file_path in kubeconfig_files:
+            try:
+                os.remove(file_path)
+                cleaned_count += 1
+            except OSError:
+                # File might already be deleted or in use, skip silently
+                pass
+        
+        if cleaned_count > 0:
+            print(f"🧹 Cleaned up {cleaned_count} temporary kubeconfig file(s)")
+        else:
+            print("🧹 No temporary kubeconfig files to clean up")
+    except Exception:
+        # Cleanup should never fail the shutdown process
+        pass
+
+
+def create_signal_handler(logger=None):
+    """Create a signal handler function for graceful shutdown.
+    
+    Args:
+        logger: Optional logger instance. If None, uses print statements.
+        
+    Returns:
+        function: Signal handler function
+    """
+    # Track if we've already handled a signal to avoid multiple shutdowns
+    shutdown_initiated = False
+    
+    def signal_handler(signum, frame):
+        """Handle shutdown signals gracefully"""
+        nonlocal shutdown_initiated
+        
+        # Avoid handling multiple signals
+        if shutdown_initiated:
+            return
+        shutdown_initiated = True
+        
+        signal_name = "SIGINT (Ctrl+C)" if signum == signal.SIGINT else "SIGTERM"
+        
+        if logger:
+            logger.info(f"Received {signal_name} signal")
+            logger.info("Shutting down Palette MCP Server gracefully...")
+        else:
+            print(f"\n🛑 Received {signal_name} signal")
+            print("🔄 Shutting down Palette MCP Server gracefully...")
+        
+        # Perform cleanup
+        cleanup_temp_files()
+        
+        if logger:
+            logger.info("Palette MCP Server stopped")
+        else:
+            print("✅ Palette MCP Server stopped")
+        
+        # Use os._exit to avoid threading issues during shutdown
+        # This bypasses Python's normal shutdown process which can hang
+        # with threading and stdio conflicts
+        os._exit(0)
+    
+    return signal_handler
+
+
+# Add this helper function near the top, after the tracer definition
 def create_span(name: str):
     """Helper function to create a span with fallback for unsupported parameters"""
     # Check if we're running in MCP Inspector
