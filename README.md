@@ -24,6 +24,7 @@ SPECTROCLOUD_DEFAULT_PROJECT_ID=your-project-id
 SPECTROCLOUD_APIKEY=your-api-key
 SPECTROCLOUD_HOST=api.spectrocloud.com
 PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
+ALLOW_DANGEROUS_ACTIONS=0
 ```
 
 Next, issue the command `uv sync --frozen` to install the required Python dependencies.

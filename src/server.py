@@ -14,6 +14,11 @@ logger.info("Starting Palette MCP Server")
 palette_host = os.environ.get('SPECTROCLOUD_HOST')
 palette_apikey = os.environ.get('SPECTROCLOUD_APIKEY')
 default_project_id = os.environ.get('SPECTROCLOUD_DEFAULT_PROJECT_ID')
+allow_dangerous_actions = os.environ.get('ALLOW_DANGEROUS_ACTIONS') == '1'
+
+if allow_dangerous_actions:
+    logger.info("⚠️ ALLOW_DANGEROUS_ACTIONS environment variable enabled. This allows dangerous actions to be performed.")
+
 
 if not palette_host:
     logger.info("SPECTROCLOUD_HOST environment variable is not set. Using default value: api.spectrocloud.com")
@@ -47,7 +52,8 @@ mcp = FastMCP("Palette MCP Server")
 mcp.session_context = MCPSessionContext(
     host=palette_host,
     apikey=palette_apikey,
-    default_project_id=default_project_id
+    default_project_id=default_project_id,
+    allow_dangerous_actions=allow_dangerous_actions
 )
 
 # # Register tools here
@@ -55,7 +61,7 @@ TOOLS = [
     getClusters,
     getActiveClusters,
     getClusterDetailsByUID,
-    deleteClusterByUID,
+
     getAdminKubeconfig,
     getKubeconfig,
     getPodsInCluster,
@@ -64,8 +70,16 @@ TOOLS = [
     sendSlackNotificationForUnhealthyCluster
 ]
 
+DANGEROUS_TOOLS = [
+    deleteClusterByUID,
+]
+
 # Register all tools
-for tool in TOOLS:
+tools_to_register = TOOLS
+if allow_dangerous_actions:
+    tools_to_register = TOOLS + DANGEROUS_TOOLS
+
+for tool in tools_to_register:
     mcp.tool()(tool)
 
 if __name__ == "__main__":
