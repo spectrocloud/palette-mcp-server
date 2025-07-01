@@ -15,14 +15,15 @@ The following items are required to use the Palette MCP server:
 - [Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/getting-started/installation) installed on your machine.
 - Network access to the Palette API from your machine.
 - A pre-existing folder to store the kubeconfig file on the host machine. This is optional but improves the experience when retrieving Kubeconfig files. The configuations below assumes the host machine folder is `/tmp/kubeconfig` but you can use any folder you prefer. For example, you can use the `~/.kube` folder.
-
-> [!IMPORTANT]
-> If you are using Docker, you must enable resource sharing for the container. This is required to allow the container to access the host machine's kubeconfig file. Refer to [Virtual file shares](https://docs.docker.com/desktop/settings-and-maintenance/settings/#virtual-file-shares) for steps on how to setup.
-
+         
 ```json
         "-v",
         "~/.kube/:/tmp/kubeconfig",
 ```
+
+> [!IMPORTANT]
+> If you are using Docker, you must enable resource sharing for the container. This is required to allow the container to access the host machine's kubeconfig file. Refer to [Virtual file shares](https://docs.docker.com/desktop/settings-and-maintenance/settings/#virtual-file-shares) for steps on how to setup.
+
 
 ### Cursor
 
