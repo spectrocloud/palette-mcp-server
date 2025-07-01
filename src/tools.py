@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from kubernetes import client, config
 from datetime import datetime, timedelta
 import pytz
+from fastmcp import Context
+from context import PaletteContext
 from helpers import (
     write_kubeconfig_to_temp,
     create_span,
@@ -14,6 +16,10 @@ from helpers import (
     safe_set_output,
     safe_set_status,
 )
+
+def get_palette_context(ctx: Context) -> PaletteContext:
+    """Helper function to get our custom Palette context from FastMCP context"""
+    return ctx.fastmcp.palette_context
 
 
 """
@@ -65,32 +71,49 @@ def mask_sensitive_data(data: Dict[str, Any]) -> Dict[str, Any]:
   This tool queries the Palette API to find all clusters in a given project.
   It returns the cluster metadata with the values.yaml removed from the return payload.
 """
-async def getClusters(api_key: str, project_id: str) -> MCPResult:
+async def getClusters(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Queries the Palette API to find all clusters in a given project."""
+    # Get our custom Palette context
+    palette_ctx = get_palette_context(ctx)
+    
+    # Use values from context.config, with optional overrides
+    api_key = palette_ctx.get_api_key(api_key)
+    project_id = palette_ctx.get_project_id(project_id)
+    palette_host = palette_ctx.get_host()
+    
+    if not api_key:
+        return {
+            "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
+            "isError": True
+        }
+    
     with create_span("getClusters") as span:
         safe_set_tool(
             span,
             name="getClusters",
             description="Queries Palette API for all clusters in a project, returning cluster metadata with values.yaml removed",
             parameters={
-                "api_key": {"type": "string", "description": "The API key for the Palette API"},
-                "project_id": {"type": "string", "description": "The ID of the project to query"}
+                "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
+                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
             }
         )
         
         safe_set_input(span, mask_sensitive_data({
             "api_key": api_key, 
-            "project_id": project_id
+
         }))
 
         try:
-            conn = http.client.HTTPSConnection("api.spectrocloud.com")
+            conn = http.client.HTTPSConnection(palette_host)
             payload = ''
             headers = {
                 'Accept': 'application/json',
-                'apiKey': api_key,
-                'ProjectUid': project_id
+                'apiKey': api_key
             }
+            
+            # Only add ProjectUid header if project_id is provided
+            if project_id:
+                headers['ProjectUid'] = project_id
 
             all_clusters = []
             continue_token = None
@@ -143,38 +166,55 @@ async def getClusters(api_key: str, project_id: str) -> MCPResult:
                 "isError": True
             }
 
-async def getActiveClusters(api_key: str, project_id: str) -> MCPResult:
+async def getActiveClusters(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Queries the Palette API to find all active clusters in a given project.
     
     Args:
-        api_key (str): The API key for the Palette API
-        project_id (str): The ID of the project to query
+        api_key (str): The API key for the Palette API. Optional, uses the API key from the context if not provided.
+        project_id (str): The ID of the project to query. Optional, uses the project ID from the context if not provided.
         
     Returns:
         MCPResult: Result object containing active cluster metadata or error information
     """
+    # Get our custom Palette context
+    palette_ctx = get_palette_context(ctx)
+    
+    # Use values from context.config, with optional overrides
+    api_key = palette_ctx.get_api_key(api_key)
+    project_id = palette_ctx.get_project_id(project_id)
+    palette_host = palette_ctx.get_host()
+    
+    if not api_key:
+        return {
+            "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
+            "isError": True
+        }
     with create_span("getActiveClusters") as span:
         safe_set_tool(
             span,
             name="getActiveClusters",
             description="Queries Palette API for active clusters in a project, returning cluster metadata",
             parameters={
-                "api_key": {"type": "string", "description": "The API key for the Palette API"},
-                "project_id": {"type": "string", "description": "The ID of the project to query"}
+                "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
+                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
             }
         )
         
-        masked_inputs = mask_sensitive_data({"api_key": api_key, "project_id": project_id})
-        safe_set_input(span, masked_inputs)
+        safe_set_input(span, mask_sensitive_data({
+            "api_key": api_key
+        }))
 
         try:
-            conn = http.client.HTTPSConnection("api.spectrocloud.com")
+            conn = http.client.HTTPSConnection(palette_host)
             headers = {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
-                'apiKey': api_key,
-                'ProjectUid': project_id
+                'apiKey': api_key
             }
+            
+            # Only add ProjectUid header if project_id is provided
+            if project_id:
+                headers['ProjectUid'] = project_id
 
             payload = json.dumps({
                 "filter": {
@@ -279,34 +319,50 @@ async def getActiveClusters(api_key: str, project_id: str) -> MCPResult:
                 "isError": True
             }
 
-async def getClusterDetailsByUID(api_key: str, project_id: str, cluster_uid: str) -> MCPResult:
+async def getClusterDetailsByUID(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Queries the Palette API to find detailed information about a specific cluster."""
+    # Get our custom Palette context
+    palette_ctx = get_palette_context(ctx)
+    
+    # Use values from context.config, with optional overrides
+    api_key = palette_ctx.get_api_key(api_key)
+    project_id = palette_ctx.get_project_id(project_id)
+    palette_host = palette_ctx.get_host()
+    
+    if not api_key:
+        return {
+            "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
+            "isError": True
+        }
+    
     with create_span("getClusterDetailsByUID") as span:
         safe_set_tool(
             span,
             name="getClusterDetailsByUID",
             description="Queries Palette API for detailed information about a specific cluster",
             parameters={
-                "api_key": {"type": "string", "description": "The API key for the Palette API"},
-                "project_id": {"type": "string", "description": "The ID of the project to query"},
-                "cluster_uid": {"type": "string", "description": "The UID of the cluster to query"}
+                "cluster_uid": {"type": "string", "description": "The UID of the cluster to query"},
+                "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
+                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
             }
         )
         
         safe_set_input(span, mask_sensitive_data({
-            "api_key": api_key, 
-            "project_id": project_id,
-            "cluster_uid": cluster_uid
+            "api_key": api_key
         }))
 
         try:
-            conn = http.client.HTTPSConnection("api.spectrocloud.com")
+            conn = http.client.HTTPSConnection(palette_host)
             headers = {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
-                'apiKey': api_key,
-                'ProjectUid': project_id
+                'apiKey': api_key
             }
+            
+            # Only add ProjectUid header if project_id is provided
+            if project_id:
+                headers['ProjectUid'] = project_id
+                
             url = f"/v1/spectroclusters/{cluster_uid}?includeTags=true&resolvePackValues=true&includePackMeta=false&profileType=%3Cstring%3E&includeNonSpectroLabels=false"
             
             conn.request("GET", url, {}, headers)
@@ -334,17 +390,31 @@ async def getClusterDetailsByUID(api_key: str, project_id: str, cluster_uid: str
                 "isError": True
             }
 
-async def deleteClusterByUID(api_key: str, project_id: str, cluster_uid: str) -> MCPResult:
+async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Deletes a specific cluster using its UID."""
+    # Get our custom Palette context
+    palette_ctx = get_palette_context(ctx)
+    
+    # Use values from context.config, with optional overrides
+    api_key = palette_ctx.get_api_key(api_key)
+    project_id = palette_ctx.get_project_id(project_id)
+    palette_host = palette_ctx.get_host()
+    
+    if not api_key:
+        return {
+            "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
+            "isError": True
+        }
+    
     with create_span("deleteClusterByUID") as span:
         safe_set_tool(
             span,
             name="deleteClusterByUID",
             description="Deletes a specific cluster from Palette using its UID",
             parameters={
-                "api_key": {"type": "string", "description": "The API key for the Palette API"},
-                "project_id": {"type": "string", "description": "The ID of the project to query"},
-                "cluster_uid": {"type": "string", "description": "The UID of the cluster to delete"}
+                "cluster_uid": {"type": "string", "description": "The UID of the cluster to delete"},
+                "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
+                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
             }
         )
         
@@ -355,13 +425,17 @@ async def deleteClusterByUID(api_key: str, project_id: str, cluster_uid: str) ->
         }))
 
         try:
-            conn = http.client.HTTPSConnection("api.spectrocloud.com")
+            conn = http.client.HTTPSConnection(palette_host)
             headers = {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
-                'apiKey': api_key,
-                'ProjectUid': project_id
+                'apiKey': api_key
             }
+            
+            # Only add ProjectUid header if project_id is provided
+            if project_id:
+                headers['ProjectUid'] = project_id
+                
             url = f"/v1/spectroclusters/{cluster_uid}?forceDelete=true"
             
             conn.request("DELETE", url, {}, headers)
@@ -389,17 +463,31 @@ async def deleteClusterByUID(api_key: str, project_id: str, cluster_uid: str) ->
                 "isError": True
             }
 
-async def getAdminKubeconfig(api_key: str, project_id: str, cluster_uid: str) -> MCPResult:
+async def getAdminKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Gets the admin kubeconfig file for a specific cluster."""
+    # Get our custom Palette context
+    palette_ctx = get_palette_context(ctx)
+    
+    # Use values from context.config, with optional overrides
+    api_key = palette_ctx.get_api_key(api_key)
+    project_id = palette_ctx.get_project_id(project_id)
+    palette_host = palette_ctx.get_host()
+    
+    if not api_key:
+        return {
+            "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
+            "isError": True
+        }
+    
     with create_span("getAdminKubeconfig") as span:
         safe_set_tool(
             span,
             name="getAdminKubeconfig",
             description="Gets the admin kubeconfig file for a specific cluster",
             parameters={
-                "api_key": {"type": "string", "description": "The API key for the Palette API"},
-                "project_id": {"type": "string", "description": "The ID of the project to query"},
-                "cluster_uid": {"type": "string", "description": "The UID of the cluster to get the kubeconfig for"}
+                "cluster_uid": {"type": "string", "description": "The UID of the cluster to get the kubeconfig for"},
+                "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
+                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
             }
         )
         
@@ -410,12 +498,16 @@ async def getAdminKubeconfig(api_key: str, project_id: str, cluster_uid: str) ->
         }))
 
         try:
-            conn = http.client.HTTPSConnection("api.spectrocloud.com")
+            conn = http.client.HTTPSConnection(palette_host)
             headers = {
                 'Accept': 'application/octet-stream',
-                'apiKey': api_key,
-                'ProjectUid': project_id
+                'apiKey': api_key
             }
+            
+            # Only add ProjectUid header if project_id is provided
+            if project_id:
+                headers['ProjectUid'] = project_id
+                
             url = f"/v1/spectroclusters/{cluster_uid}/assets/adminKubeconfig"
             
             conn.request("GET", url, {}, headers)
@@ -464,17 +556,31 @@ async def getAdminKubeconfig(api_key: str, project_id: str, cluster_uid: str) ->
                 "isError": True
             }
 
-async def getKubeconfig(api_key: str, project_id: str, cluster_uid: str) -> MCPResult:
+async def getKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Gets the regular (non-admin) kubeconfig file for a specific cluster.  Preferably use getAdminKubeconfig instead."""
+    # Get our custom Palette context
+    palette_ctx = get_palette_context(ctx)
+    
+    # Use values from context.config, with optional overrides
+    api_key = palette_ctx.get_api_key(api_key)
+    project_id = palette_ctx.get_project_id(project_id)
+    palette_host = palette_ctx.get_host()
+    
+    if not api_key:
+        return {
+            "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
+            "isError": True
+        }
+    
     with create_span("getKubeconfig") as span:
         safe_set_tool(
             span,
             name="getKubeconfig",
             description="Gets the regular (non-admin) kubeconfig file for a specific cluster",
             parameters={
-                "api_key": {"type": "string", "description": "The API key for the Palette API"},
-                "project_id": {"type": "string", "description": "The ID of the project to query"},
-                "cluster_uid": {"type": "string", "description": "The UID of the cluster to get the kubeconfig for"}
+                "cluster_uid": {"type": "string", "description": "The UID of the cluster to get the kubeconfig for"},
+                "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
+                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
             }
         )
         
@@ -485,12 +591,16 @@ async def getKubeconfig(api_key: str, project_id: str, cluster_uid: str) -> MCPR
         }))
 
         try:
-            conn = http.client.HTTPSConnection("api.spectrocloud.com")
+            conn = http.client.HTTPSConnection(palette_host)
             headers = {
                 'Accept': 'application/octet-stream',
-                'apiKey': api_key,
-                'ProjectUid': project_id
+                'apiKey': api_key
             }
+            
+            # Only add ProjectUid header if project_id is provided
+            if project_id:
+                headers['ProjectUid'] = project_id
+                
             url = f"/v1/spectroclusters/{cluster_uid}/assets/kubeconfig"
             
             conn.request("GET", url, {}, headers)

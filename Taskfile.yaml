@@ -35,3 +35,15 @@ tasks:
         -e MCP_INSPECTOR=true \
         -e PHOENIX_COLLECTOR_ENDPOINT=$PHOENIX_COLLECTOR_ENDPOINT \
         uv run src/server.py --method tools/list
+
+  build-image:
+    desc: "Build the Docker image. Example: task build-image -- dev"
+    cmds:
+      - docker buildx create --name multiarch --use || true
+      - docker buildx build --platform linux/amd64,linux/arm64 -t public.ecr.aws/palette-ai/palette-mcp-server:{{.CLI_ARGS}}  . --push
+      - docker buildx rm multiarch || true
+
+  ecr-login:
+    desc: "Login to ECR using Palette AI AWS account"
+    cmds:
+      - aws ecr-public get-login-password --region us-east-1 --profile ai | docker login --username AWS --password-stdin public.ecr.aws/palette-ai || true

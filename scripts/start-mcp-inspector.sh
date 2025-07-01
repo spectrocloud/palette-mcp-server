@@ -54,7 +54,7 @@ export DANGEROUSLY_OMIT_AUTH="true"
 
 echo "🔍 Starting MCP Inspector..."
 echo "   Command: ${COMMAND} ${ARGS}"
-echo "   Project ID: ${SPECTROCLOUD_PROJECT_ID}"
+echo "   Project ID: ${SPECTROCLOUD_DEFAULT_PROJECT_ID}"
 echo "   Phoenix Endpoint: ${PHOENIX_COLLECTOR_ENDPOINT}"
 echo "   Auth Disabled: ${DANGEROUSLY_OMIT_AUTH}"
 echo ""
@@ -64,7 +64,7 @@ echo ""
 
 # Start the MCP Inspector
 npx @modelcontextprotocol/inspector \
-    -e "SPECTROCLOUD_PROJECT_ID=${SPECTROCLOUD_PROJECT_ID}" \
+    -e "SPECTROCLOUD_PROJECT_ID=${SPECTROCLOUD_DEFAULT_PROJECT_ID}" \
     -e "SPECTROCLOUD_APIKEY=${SPECTROCLOUD_APIKEY}" \
     -e "PHOENIX_COLLECTOR_ENDPOINT=${PHOENIX_COLLECTOR_ENDPOINT}" \
     "${COMMAND}" "${ARGS}" 
