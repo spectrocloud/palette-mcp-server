@@ -56,11 +56,7 @@ SAFE_TOOLS = [
     getActiveClusters,
     getClusterDetailsByUID,
     getAdminKubeconfig,
-    getKubeconfig,
-    getPodsInCluster,
-    analyzeCluster,
-    prepareUnhealthyClusterNotificationMessage,
-    sendSlackNotificationForUnhealthyCluster
+    getKubeconfig
 ]
 
 # Dangerous tools (only loaded if dangerous actions are allowed)
