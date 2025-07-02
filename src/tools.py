@@ -403,8 +403,15 @@ async def getClusterDetailsByUID(ctx: Context, cluster_uid: str, project_id: Opt
                 "isError": True
             }
 
-async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-    """Deletes a specific cluster using its UID."""
+async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None, force_delete: bool = False) -> MCPResult:
+    """Deletes a specific cluster using its UID. Specifying force_delete=True will force the deletion of the cluster. Keep in mind that force delete can only work if the cluster is in the delete state. A delete request must be initiated without the force delete flag prior to using force delete.
+    
+    Args:
+        cluster_uid (str): The UID of the cluster to delete
+        project_id (str): The ID of the project to query (optional, omits the ProjectUid header if not provided)
+        api_key (str): The API key for the Palette API (optional, uses default if not provided)
+        force_delete (bool): Whether to force delete the cluster (optional, defaults to false)
+    """
     # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
     
@@ -427,14 +434,16 @@ async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optiona
             parameters={
                 "cluster_uid": {"type": "string", "description": "The UID of the cluster to delete"},
                 "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
-                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
+                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"},
+                "force_delete": {"type": "boolean", "description": "Whether to force delete the cluster (optional, defaults to false)"}
             }
         )
         
         safe_set_input(span, mask_sensitive_data({
             "api_key": api_key, 
             "project_id": project_id,
-            "cluster_uid": cluster_uid
+            "cluster_uid": cluster_uid,
+            "force_delete": force_delete
         }))
 
         try:
@@ -449,7 +458,7 @@ async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optiona
             if project_id:
                 headers['ProjectUid'] = project_id
                 
-            url = f"/v1/spectroclusters/{cluster_uid}?forceDelete=true"
+            url = f"/v1/spectroclusters/{cluster_uid}?forceDelete={str(force_delete).lower()}"
             
             conn.request("DELETE", url, {}, headers)
             res = conn.getresponse()
