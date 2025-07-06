@@ -6,6 +6,9 @@ The Palette MCP server is tool for interacting with Palette through the Model Co
 
 - [Auto-generated Tools Mode - tools dynamically generated from the Palette API](#auto-generated-tools-mode).
 
+> [!WARNING]
+> This is an experimental project and subject to breaking changes.
+
 ### Curated Tools Mode
 
 The Palette MCP server provides the following tools. Checkout the [Usage](#usage) section to learn more about how to use the tools. Some tools require explicit enablement before they can be used. Refer to the [Dangerous Actions](#dangerous-actions) section for more information.
