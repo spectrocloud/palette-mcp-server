@@ -1,9 +1,10 @@
 # Palette MCP Server
 
-The Palette MCP server is tool for interacting with Palette through the Model Context Protocol (MCP). We offer two modes to use the Palette MCP server.
+The Palette MCP server is tool for interacting with Palette through the Model Context Protocol (MCP). The Palette MCP server comes with two modes that you can choose from.
 
-- [Curated tools crafted by our engineering team](#curated-tools-mode). This the default mode.
-- [Auto-generate tools from Palette APIs](#auto-generate-tools-from-palette-apis).
+- [Curated Tools Mode - tools crafted by our engineering team](#curated-tools-mode). This the default mode.
+
+- [Auto-generated Tools Mode - tools dynamically generated from the Palette API](#auto-generated-tools-mode).
 
 ### Curated Tools Mode
 
