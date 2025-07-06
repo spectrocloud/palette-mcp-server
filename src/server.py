@@ -3,7 +3,7 @@ import os, logging, signal, sys, atexit, operator
 from fastmcp import FastMCP, Context
 from context import MCPSessionContext
 from helpers import cleanup_temp_files, create_signal_handler
-from tools import getClusters, getActiveClusters, getClusterDetailsByUID, deleteClusterByUID, getAdminKubeconfig, getKubeconfig, getPodsInCluster, analyzeCluster, prepareUnhealthyClusterNotificationMessage, sendSlackNotificationForUnhealthyCluster
+from tools import getClusters, getClusterProfiles, getClusterProfileByUID, getActiveClusters, getClusterDetailsByUID, deleteClusterByUID, deleteClusterProfileByUID, getAdminKubeconfig, getKubeconfig, getPodsInCluster, analyzeCluster, prepareUnhealthyClusterNotificationMessage, sendSlackNotificationForUnhealthyCluster
 
 
 logger = logging.getLogger('palette_mcp_server')
@@ -53,6 +53,8 @@ mcp = FastMCP("Palette MCP Server")
 # Safe tools (always loaded)
 SAFE_TOOLS = [
     getClusters,
+    getClusterProfiles,
+    getClusterProfileByUID,
     getActiveClusters,
     getClusterDetailsByUID,
     getAdminKubeconfig,
@@ -61,7 +63,8 @@ SAFE_TOOLS = [
 
 # Dangerous tools (only loaded if dangerous actions are allowed)
 DANGEROUS_TOOLS = [
-    deleteClusterByUID
+    deleteClusterByUID,
+    deleteClusterProfileByUID
 ]
 
 TOOLS = sorted(SAFE_TOOLS + (DANGEROUS_TOOLS if allow_dangerous_actions else []), key=operator.attrgetter('__name__'))
