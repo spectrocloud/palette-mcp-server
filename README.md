@@ -6,14 +6,17 @@ The Palette MCP server is tool for interacting with Palette through the Model Co
 
 The Palette MCP server provides the following tools. Checkout the [Usage](#usage) section to learn more about how to use the tools. Some tools require explicit enablement before they can be used. Refer to the [Dangerous Actions](#dangerous-actions) section for more information.
 
-| Tool                     | Description                          | Dangerous Action |
-| ------------------------ | ------------------------------------ | ---------------- |
-| `getClusters`            | Get a list of clusters.              | No               |
-| `getActiveClusters`      | Get a list of active clusters.       | No               |
-| `getClusterDetailsByUID` | Get a cluster by UID.                | No               |
-| `deleteClusterByUID`     | Delete a cluster by UID.             | Yes              |
-| `getAdminKubeconfig`     | Get an Admin kubeconfig for cluster. | No               |
-| `getKubeconfig`          | Get a kubeconfig for the cluster.    | No               |
+| Tool                        | Description                            | Dangerous Action |
+| --------------------------- | -------------------------------------- | ---------------- |
+| `getClusters`               | Get a list of clusters.                | No               |
+| `getActiveClusters`         | Get a list of active clusters.         | No               |
+| `getClusterDetailsByUID`    | Get a cluster by UID.                  | No               |
+| `getClusterProfileByUID`    | Get a specific cluster profile by UID. | No               |
+| `getClusterProfiles`        | Get a list of all cluster profiles.    | No               |
+| `deleteClusterByUID`        | Delete a cluster by UID.               | Yes              |
+| `deleteClusterProfileByUID` | Delete a cluster profile by UID.       | Yes              |
+| `getAdminKubeconfig`        | Get an Admin kubeconfig for cluster.   | No               |
+| `getKubeconfig`             | Get a kubeconfig for the cluster.      | No               |
 
 ## Get Started
 
@@ -137,6 +140,14 @@ Some applications may require your approval to use the Palette MCP server tools.
 
 There are various ways to use the Palette MCP server tools. The primary way to use the tools is to enable integration with a Large Language Model (LLM) to access the tools. You can enable integration with a LLM by adding the Palette MCP server to the MCP configuration of your application.
 
+### Scope
+
+If you specified a `SPECTROCLOUD_DEFAULT_PROJECT_ID` in the `.env-mcp` file, the Palette MCP server will always default to using the provided project ID. If you do not provide a project ID, then the tool call requires you to provide a project ID. You can also provide a different project ID as a parameter to the tool call. Or in other words, if working through an LLM, in the prompt you can specify a different project ID to use.
+
+### API Key
+
+Same behavior as `SPECTROCLOUD_DEFAULT_PROJECT_ID` applies to the API key. If you specified a `SPECTROCLOUD_APIKEY` in the `.env-mcp` file, the Palette MCP server will always default to using the provided API key. If you do not provide an API key, then the tool call requires you to provide an API key. You can also provide a different API key as a parameter to the tool call. This allows you to target different organizations by specifying a different API key.
+
 ### Dangerous Actions
 
 To prevent accidental use of dangerous actions, the Palette MCP server requires you to set the `ALLOW_DANGEROUS_ACTIONS` environment variable to `1`. This is a precautionary measure to prevent accidental use of dangerous actions. Review the [Tools](#available-tools) section to understand which tools are dangerous and require approval.
@@ -146,6 +157,10 @@ To prevent accidental use of dangerous actions, the Palette MCP server requires 
 The Palette MCP server provides tools to access kubeconfig files for clusters. You can access the kubeconfig files by mounting a local folder to the container. In the container, all kubeconfig files are stored in the `/tmp/kubeconfig` folder. If you use the tool calls `getAdminKubeconfig` or `getKubeconfig`, the kubeconfig file will be stored in the `/tmp/kubeconfig` folder. The filename will have the cluster's UID as the name, for example, `68669fcfee517a7f9a91a9e5.kubeconfig`.
 
 Once you have the kubeconfig file locally, assuming your application with an LLM has access to your local filesystem and a shell environment, you can have the application use the kubeconfig file to access the cluster. For example, if you are using Cursor, you can ask it to use the kubeconfig file to with the `kubectl` command to access the cluster.
+
+### Removing a Cluster
+
+To remove a cluster from Palette, you can use the `deleteClusterByUID` tool. This tool will delete the cluster from Palette. This tool requires the `ALLOW_DANGEROUS_ACTIONS` environment variable to be set to `1`. The tool call supports a `force_delete` parameter to force the deletion of the cluster. However, keep in mind that force delete can only work if the cluster is in the deletion state. A delete request must be initiated without the force delete flag prior to using force delete.
 
 ### Accessing Cluster Information
 

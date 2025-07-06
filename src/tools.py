@@ -81,7 +81,9 @@ def safe_set_span_status(span, status_code: str, description: str = None):
 
 
 """
-  This tool queries the Palette API to find all clusters in a given project.
+  This tool queries the Palette API to find all clusters in a given project, regardless of state. Cluster could be in a running, stopped, unhealthy, unknown, or deleted state.
+  The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
+  the context will not be used. Instead, the project_id and api_key will be used directly.
   It returns the cluster metadata with the values.yaml removed from the return payload.
 """
 async def getClusters(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
@@ -180,7 +182,8 @@ async def getClusters(ctx: Context, project_id: Optional[str] = None, api_key: O
             }
 
 async def getActiveClusters(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-    """Queries the Palette API to find all active clusters in a given project.
+    """Queries the Palette API to find all active clusters in a given project. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
+  the context will not be used. Instead, the project_id and api_key will be used directly.
     
     Args:
         api_key (str): The API key for the Palette API. Optional, uses the API key from the context if not provided.
@@ -333,7 +336,9 @@ async def getActiveClusters(ctx: Context, project_id: Optional[str] = None, api_
             }
 
 async def getClusterDetailsByUID(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-    """Queries the Palette API to find detailed information about a specific cluster."""
+    """Queries the Palette API to find detailed information about a specific cluster. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
+  the context will not be used. Instead, the project_id and api_key will be used directly.
+    """
     # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
     
@@ -405,6 +410,8 @@ async def getClusterDetailsByUID(ctx: Context, cluster_uid: str, project_id: Opt
 
 async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None, force_delete: bool = False) -> MCPResult:
     """Deletes a specific cluster using its UID. Specifying force_delete=True will force the deletion of the cluster. Keep in mind that force delete can only work if the cluster is in the delete state. A delete request must be initiated without the force delete flag prior to using force delete.
+       The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
+       the context will not be used. Instead, the project_id and api_key will be used directly.
     
     Args:
         cluster_uid (str): The UID of the cluster to delete
@@ -467,8 +474,26 @@ async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optiona
             if res.status >= 400:
                 raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
 
-            result = {"status": json.loads(data.decode("utf-8"))}
+            # Handle successful DELETE response (typically 204 No Content)
+            if res.status == 204 or not data or data == b'':
+                result = {
+                    "status": "success",
+                    "message": f"Cluster {cluster_uid} deleted successfully",
+                    "http_status": res.status
+                }
+            else:
+                try:
+                    result = {"status": json.loads(data.decode("utf-8"))}
+                except json.JSONDecodeError:
+                    result = {
+                        "status": "success",
+                        "message": f"Cluster {cluster_uid} deleted successfully",
+                        "response": data.decode("utf-8"),
+                        "http_status": res.status
+                    }
+            
             safe_set_output(span, result)
+            safe_set_span_status(span, "OK")
             
             return {
                 "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
@@ -486,7 +511,9 @@ async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optiona
             }
 
 async def getAdminKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-    """Gets the admin kubeconfig file for a specific cluster."""
+    """Gets the admin kubeconfig file for a specific cluster. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
+      the context will not be used. Instead, the project_id and api_key will be used directly.
+    """
     # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
     
@@ -581,7 +608,10 @@ async def getAdminKubeconfig(ctx: Context, cluster_uid: str, project_id: Optiona
             }
 
 async def getKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-    """Gets the regular (non-admin) kubeconfig file for a specific cluster.  Preferably use getAdminKubeconfig instead."""
+    """Gets the regular (non-admin) kubeconfig file for a specific cluster.  Preferably use getAdminKubeconfig instead.
+       The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
+       the context will not be used. Instead, the project_id and api_key will be used directly.
+    """
     # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
     
@@ -1049,6 +1079,279 @@ async def prepareUnhealthyClusterNotificationMessage(title: str, details: str, c
 
         except Exception as e:
             error_message = f"Error creating notification blocks: {str(e)}"
+            safe_set_output(span, {"error": error_message})
+            safe_set_span_status(span, "ERROR", str(e))
+            
+            return {
+                "content": [{"type": "text", "text": error_message}],
+                "isError": True
+            }
+  
+  
+async def  getClusterProfiles(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
+  """Gets all cluster profiles in a project. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
+  the context will not be used. Instead, the project_id and api_key will be used directly.
+  """
+  # Get our custom MCP session context
+  session_ctx = get_session_context(ctx)
+  
+
+  # Use values from context.config, with optional overrides
+  api_key = session_ctx.get_api_key(api_key)
+  project_id = session_ctx.get_project_id(project_id)
+  palette_host = session_ctx.get_host()
+    
+  if not api_key:
+      return {
+          "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
+          "isError": True
+      }
+  
+  with create_span("getClusterProfiles") as span:
+      safe_set_tool(
+          span,
+          name="getClusterProfiles",
+          description="Queries Palette API for all cluster profiles in a project, returning profile metadata with pack values removed",
+          parameters={
+              "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
+              "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
+          }
+      )
+      
+      safe_set_input(span, mask_sensitive_data({
+          "api_key": api_key
+      }))
+
+      try:
+          conn = http.client.HTTPSConnection(palette_host)
+          payload = ''
+          headers = {
+              'Accept': 'application/json',
+              'apiKey': api_key
+          }
+          
+          # Only add ProjectUid header if project_id is provided
+          if project_id:
+              headers['ProjectUid'] = project_id
+
+          all_profiles = []
+          continue_token = None
+
+          while True:
+              if continue_token:
+                  headers['Continue'] = continue_token
+
+              conn.request("GET", "/v1/clusterprofiles/", payload, headers)
+              res = conn.getresponse()
+              data = res.read()
+
+              if res.status >= 400:
+                  raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
+
+              json_data = json.loads(data.decode("utf-8"))
+              all_profiles.extend(json_data.get('items', []))
+
+              continue_token = json_data.get('listmeta', {}).get('continue')
+              if not continue_token:
+                  break
+
+          # Clean up pack values from cluster profiles
+          for profile in all_profiles:
+              if 'spec' in profile:
+                  # Handle published packs
+                  if 'published' in profile['spec'] and 'packs' in profile['spec']['published']:
+                      for pack in profile['spec']['published']['packs']:
+                          if 'values' in pack:
+                              del pack['values']
+                  
+                  # Handle draft packs
+                  if 'draft' in profile['spec'] and 'packs' in profile['spec']['draft']:
+                      for pack in profile['spec']['draft']['packs']:
+                          if 'values' in pack:
+                              del pack['values']
+
+          result = {"clusterProfiles": {'items': all_profiles}}
+          safe_set_output(span, result)
+          safe_set_span_status(span, "OK")
+          
+          return {
+              "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
+              "isError": False
+          }
+
+      except Exception as e:
+          error_message = f"Error during API call: {str(e)}"
+          safe_set_output(span, {"error": error_message})
+          safe_set_span_status(span, "ERROR", str(e))
+          
+          return {
+              "content": [{"type": "text", "text": error_message}],
+              "isError": True
+          }
+
+async def getClusterProfileByUID(ctx: Context, clusterprofile_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
+    """Gets a specific cluster profile by its UID. Returns all data including pack values. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
+    the context will not be used. Instead, the project_id and api_key will be used directly.
+    """
+    # Get our custom MCP session context
+    session_ctx = get_session_context(ctx)
+    
+    # Use values from context.config, with optional overrides
+    api_key = session_ctx.get_api_key(api_key)
+    project_id = session_ctx.get_project_id(project_id)
+    palette_host = session_ctx.get_host()
+    
+    if not api_key:
+        return {
+            "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
+            "isError": True
+        }
+    
+    with create_span("getClusterProfileByUID") as span:
+        safe_set_tool(
+            span,
+            name="getClusterProfileByUID",
+            description="Queries Palette API for a specific cluster profile by UID, returning complete profile data including pack values",
+            parameters={
+                "clusterprofile_uid": {"type": "string", "description": "The UID of the cluster profile to retrieve"},
+                "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
+                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
+            }
+        )
+        
+        safe_set_input(span, mask_sensitive_data({
+            "api_key": api_key,
+            "clusterprofile_uid": clusterprofile_uid
+        }))
+
+        try:
+            conn = http.client.HTTPSConnection(palette_host)
+            headers = {
+                'Accept': 'application/json',
+                'apiKey': api_key
+            }
+            
+            # Only add ProjectUid header if project_id is provided
+            if project_id:
+                headers['ProjectUid'] = project_id
+                
+            url = f"/v1/clusterprofiles/{clusterprofile_uid}"
+            
+            conn.request("GET", url, {}, headers)
+            res = conn.getresponse()
+            data = res.read()
+
+            if res.status >= 400:
+                raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
+
+            result = {"clusterProfile": json.loads(data.decode("utf-8"))}
+            safe_set_output(span, result)
+            safe_set_span_status(span, "OK")
+            
+            return {
+                "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
+                "isError": False
+            }
+
+        except Exception as e:
+            error_message = f"Error during API call: {str(e)}"
+            safe_set_output(span, {"error": error_message})
+            safe_set_span_status(span, "ERROR", str(e))
+            
+            return {
+                "content": [{"type": "text", "text": error_message}],
+                "isError": True
+            }
+
+async def deleteClusterProfileByUID(ctx: Context, clusterprofile_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
+    """Deletes a specific cluster profile using its UID. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
+    the context will not be used. Instead, the project_id and api_key will be used directly.
+    
+    Args:
+        clusterprofile_uid (str): The UID of the cluster profile to delete
+        project_id (str): The ID of the project to query (optional, omits the ProjectUid header if not provided)
+        api_key (str): The API key for the Palette API (optional, uses default if not provided)
+    """
+    # Get our custom MCP session context
+    session_ctx = get_session_context(ctx)
+    
+    # Use values from context.config, with optional overrides
+    api_key = session_ctx.get_api_key(api_key)
+    project_id = session_ctx.get_project_id(project_id)
+    palette_host = session_ctx.get_host()
+    
+    if not api_key:
+        return {
+            "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
+            "isError": True
+        }
+    
+    with create_span("deleteClusterProfileByUID") as span:
+        safe_set_tool(
+            span,
+            name="deleteClusterProfileByUID",
+            description="Deletes a specific cluster profile from Palette using its UID",
+            parameters={
+                "clusterprofile_uid": {"type": "string", "description": "The UID of the cluster profile to delete"},
+                "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
+                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
+            }
+        )
+        
+        safe_set_input(span, mask_sensitive_data({
+            "api_key": api_key,
+            "clusterprofile_uid": clusterprofile_uid
+        }))
+
+        try:
+            conn = http.client.HTTPSConnection(palette_host)
+            headers = {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'apiKey': api_key
+            }
+            
+            # Only add ProjectUid header if project_id is provided
+            if project_id:
+                headers['ProjectUid'] = project_id
+                
+            url = f"/v1/clusterprofiles/{clusterprofile_uid}"
+            
+            conn.request("DELETE", url, {}, headers)
+            res = conn.getresponse()
+            data = res.read()
+
+            if res.status >= 400:
+                raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
+
+            # Handle successful DELETE response (typically 204 No Content)
+            if res.status == 204 or not data or data == b'':
+                result = {
+                    "status": "success",
+                    "message": f"Cluster profile {clusterprofile_uid} deleted successfully",
+                    "http_status": res.status
+                }
+            else:
+                try:
+                    result = {"status": json.loads(data.decode("utf-8"))}
+                except json.JSONDecodeError:
+                    result = {
+                        "status": "success",
+                        "message": f"Cluster profile {clusterprofile_uid} deleted successfully",
+                        "response": data.decode("utf-8"),
+                        "http_status": res.status
+                    }
+            
+            safe_set_output(span, result)
+            safe_set_span_status(span, "OK")
+            
+            return {
+                "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
+                "isError": False
+            }
+
+        except Exception as e:
+            error_message = f"Error during API call: {str(e)}"
             safe_set_output(span, {"error": error_message})
             safe_set_span_status(span, "ERROR", str(e))
             
