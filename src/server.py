@@ -1,10 +1,12 @@
 from typing import Any
 import os, logging, signal, sys, atexit, operator
+import httpx
 from fastmcp import FastMCP, Context
+from fastmcp.server.openapi import RouteMap, MCPType
 from context import MCPSessionContext
 from helpers import cleanup_temp_files, create_signal_handler
 from tools import getClusters, getClusterProfiles, getClusterProfileByUID, getActiveClusters, getClusterDetailsByUID, deleteClusterByUID, deleteClusterProfileByUID, getAdminKubeconfig, getKubeconfig, getPodsInCluster, analyzeCluster, prepareUnhealthyClusterNotificationMessage, sendSlackNotificationForUnhealthyCluster
-
+from openapi import load_openapi_spec, generate_mcp_names
 
 logger = logging.getLogger('palette_mcp_server')
 logger.info("Starting Palette MCP Server")
@@ -14,6 +16,7 @@ palette_host = os.environ.get('SPECTROCLOUD_HOST')
 palette_apikey = os.environ.get('SPECTROCLOUD_APIKEY')
 default_project_id = os.environ.get('SPECTROCLOUD_DEFAULT_PROJECT_ID')
 allow_dangerous_actions = os.environ.get('ALLOW_DANGEROUS_ACTIONS') == '1'
+all_palette_apis = os.environ.get('AUTO_GENERATE_MCP_TOOLS') == '1'
 
 if allow_dangerous_actions:
     logger.info("⚠️ ALLOW_DANGEROUS_ACTIONS environment variable enabled. This allows dangerous actions to be performed.")
@@ -47,39 +50,45 @@ else:
         # Remove the environment variable so helpers.py knows Phoenix is not available
         os.environ.pop('PHOENIX_COLLECTOR_ENDPOINT', None)
 
-mcp = FastMCP("Palette MCP Server")
 
 
-# Safe tools (always loaded)
-SAFE_TOOLS = [
-    getClusters,
-    getClusterProfiles,
-    getClusterProfileByUID,
-    getActiveClusters,
-    getClusterDetailsByUID,
-    getAdminKubeconfig,
-    getKubeconfig
-]
+# Load the OpenAPI spec
+if all_palette_apis:
+    openapi_spec = load_openapi_spec('../openapi/openapi.yaml', logger)
+    mcp_names = generate_mcp_names(openapi_spec, logger)
+    
+else:
+    openapi_spec = None 
+    mcp = FastMCP("Palette MCP Server")
+    # Safe tools (always loaded)
+    SAFE_TOOLS = [
+        getClusters,
+        getClusterProfiles,
+        getClusterProfileByUID,
+        getActiveClusters,
+        getClusterDetailsByUID,
+        getAdminKubeconfig,
+        getKubeconfig
+    ]
 
-# Dangerous tools (only loaded if dangerous actions are allowed)
-DANGEROUS_TOOLS = [
-    deleteClusterByUID,
-    deleteClusterProfileByUID
-]
+    # Dangerous tools (only loaded if dangerous actions are allowed)
+    DANGEROUS_TOOLS = [
+        deleteClusterByUID,
+        deleteClusterProfileByUID
+    ]
 
-TOOLS = sorted(SAFE_TOOLS + (DANGEROUS_TOOLS if allow_dangerous_actions else []), key=operator.attrgetter('__name__'))
+    TOOLS = sorted(SAFE_TOOLS + (DANGEROUS_TOOLS if allow_dangerous_actions else []), key=operator.attrgetter('__name__'))
+    # Register all tools
+    for tool in TOOLS:
+        mcp.tool()(tool) 
 
-# Register all tools
-for tool in TOOLS:
-    mcp.tool()(tool) 
-
-# Create and store our custom MCP session context
-mcp.session_context = MCPSessionContext(
-    host=palette_host,
-    apikey=palette_apikey,
-    default_project_id=default_project_id,
-    allow_dangerous_actions=allow_dangerous_actions
-)
+    # Create and store our custom MCP session context
+    mcp.session_context = MCPSessionContext(
+        host=palette_host,
+        apikey=palette_apikey,
+        default_project_id=default_project_id,
+        allow_dangerous_actions=allow_dangerous_actions
+    )
 
 if __name__ == "__main__":
     # Register cleanup function to run on normal exit
@@ -91,9 +100,27 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, signal_handler)  # Container termination
     
     try:
-        # Initialize and run the server
+      if all_palette_apis:
+        client = httpx.AsyncClient(
+            base_url=f"https://{palette_host}",
+            headers={"Apikey": palette_apikey, "ProjectUID": default_project_id},
+            timeout=20
+        )
+        mcp = FastMCP.from_openapi(
+          openapi_spec=openapi_spec,
+          client=client,
+          name="Palette MCP Server",
+          timeout=20,
+          route_maps=[
+              RouteMap(mcp_type=MCPType.TOOL),
+          ],
+          mcp_names=mcp_names
+      )
+        logger.info("Server running with stdio transport and auto generated MCP tools")
+      else:
         logger.info("Server running with stdio transport")
-        mcp.run(transport='stdio')
+      # Initialize and run the server
+      mcp.run(transport='stdio')
     except KeyboardInterrupt:
         # This shouldn't be reached due to signal handler, but just in case
         signal_handler(signal.SIGINT, None)

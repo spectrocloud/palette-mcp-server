@@ -1,0 +1,10 @@
+raw-palette-aois.json
+scripts/
+Taskfile.yaml
+.gitignore
+.openapi-generator
+.venv
+.env
+inspector.log
+.git
+.dockerignore

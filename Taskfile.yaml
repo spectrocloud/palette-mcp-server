@@ -28,6 +28,13 @@ tasks:
       - echo "Starting Palette MCP Server"
       - uv run python server.py
 
+  clean:
+    desc: "Clean the local openapi directory"
+    cmds:
+      - rm -rf openapi/
+      - rm openapi.json
+      - rm openapi.yaml
+
   mcp-inspect:
     desc: "Inspect the MCP server using the MCP Inspector"
     dotenv: [.env, ../.env]
@@ -60,3 +67,19 @@ tasks:
     desc: "Login to ECR using Palette AI AWS account"
     cmds:
       - aws ecr-public get-login-password --region us-east-1 --profile ai | docker login --username AWS --password-stdin public.ecr.aws/palette-ai || true
+
+  download-openapi-spec:
+    desc: "Download the OpenAPI spec from the Spectro Cloud API"
+    cmds:
+      - curl --silent -o raw-palette-apis.json https://raw.githubusercontent.com/spectrocloud/librarium/version-4-6/docs/api-content/api-docs/palette-apis.json
+
+  convert-openapi:
+    desc: "Generate the OpenAPI client"
+    # deps: [download-openapi-spec]
+    cmds:
+      - echo "Current working directory:" && pwd && ls -la raw-palette-apis.json
+      - |
+        npx @openapitools/openapi-generator-cli generate \
+        -g openapi-yaml \
+        -i /local/raw-palette-apis.json \
+        -o /local

@@ -11,4 +11,5 @@ dependencies = [
     "opentelemetry-sdk>=1.29.0",
     "fastmcp>=2.9.2",
     "kubernetes>=33.1.0",
+    "httpx>=0.28.1",
 ]

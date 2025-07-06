@@ -58,15 +58,17 @@ echo "   Project ID: ${SPECTROCLOUD_DEFAULT_PROJECT_ID}"
 echo "   Phoenix Endpoint: ${PHOENIX_COLLECTOR_ENDPOINT}"
 echo "   Auth Disabled: ${DANGEROUSLY_OMIT_AUTH}"
 echo "   Dangerous Actions: ${ALLOW_DANGEROUS_ACTIONS}"
+echo "   Auto Generate MCP Tools: ${AUTO_GENERATE_MCP_TOOLS}"
 echo ""
 echo "📖 Inspector will be available at: http://localhost:6274"
 echo "🛑 Press Ctrl+C to stop the inspector"
 echo ""
 
-Start the MCP Inspector
+# Start the MCP Inspector
 exec npx @modelcontextprotocol/inspector \
     -e "SPECTROCLOUD_PROJECT_ID=${SPECTROCLOUD_DEFAULT_PROJECT_ID}" \
     -e "SPECTROCLOUD_APIKEY=${SPECTROCLOUD_APIKEY}" \
     -e "PHOENIX_COLLECTOR_ENDPOINT=${PHOENIX_COLLECTOR_ENDPOINT}" \
     -e "ALLOW_DANGEROUS_ACTIONS=${ALLOW_DANGEROUS_ACTIONS}" \
+    -e "AUTO_GENERATE_MCP_TOOLS=${AUTO_GENERATE_MCP_TOOLS}" \
     -- uv run python src/server.py 

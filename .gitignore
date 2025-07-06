@@ -209,3 +209,7 @@ __marimo__/
 
 # Environment 
 .env
+.openapi-generator/
+openapi/
+palette-apis.json
+test.py

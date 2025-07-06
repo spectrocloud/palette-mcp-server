@@ -1,8 +1,11 @@
 # Palette MCP Server
 
-The Palette MCP server is tool for interacting with Palette through the Model Context Protocol (MCP).
+The Palette MCP server is tool for interacting with Palette through the Model Context Protocol (MCP). We offer two modes to use the Palette MCP server.
 
-## Available Tools
+- [Curated tools crafted by our engineering team](#curated-tools-mode). This the default mode.
+- [Auto-generate tools from Palette APIs](#auto-generate-tools-from-palette-apis).
+
+### Curated Tools Mode
 
 The Palette MCP server provides the following tools. Checkout the [Usage](#usage) section to learn more about how to use the tools. Some tools require explicit enablement before they can be used. Refer to the [Dangerous Actions](#dangerous-actions) section for more information.
 
@@ -17,6 +20,15 @@ The Palette MCP server provides the following tools. Checkout the [Usage](#usage
 | `deleteClusterProfileByUID` | Delete a cluster profile by UID.       | Yes              |
 | `getAdminKubeconfig`        | Get an Admin kubeconfig for cluster.   | No               |
 | `getKubeconfig`             | Get a kubeconfig for the cluster.      | No               |
+
+The list above will continue to grow as we add more tools to the Palette MCP server.
+
+### Auto-generated Tools
+
+The Palette MCP server can automatically generate tools from the Palette API. This is useful if you want to use experiment with all Palette endpoints. To enable this mode, set the `AUTO_GENERATE_MCP_TOOLS` environment variable to `1`. In this mode, there is no dangerous actions protection. All Palette endpoints are available to use.
+
+> [!WARNING]
+> Enabling `AUTO_GENERATE_MCP_TOOLS` will result in over 950 unique tools being loaded into the MCP server. Most models, if not all, will not be able to handle this many tools and will only load a subset of the tools. We also cannot guarantee that the tools will work as expected as they are generated dynamically.
 
 ## Get Started
 
@@ -48,6 +60,7 @@ SPECTROCLOUD_DEFAULT_PROJECT_ID=your-project-id
 SPECTROCLOUD_APIKEY=your-api-key
 SPECTROCLOUD_HOST=api.spectrocloud.com
 ALLOW_DANGEROUS_ACTIONS=0
+AUTO_GENERATE_MCP_TOOLS=0
 ```
 
 Next, create a folder to store the kubeconfig file on the host machine. This is optional but improves the experience when retrieving Kubeconfig files. The configuations below assumes the host machine folder is `/home/demouser/kubeconfig` but you can use any folder you prefer. In the following command replace the `/home/demouser/kubeconfig` with the path to your kubeconfig folder.
@@ -144,13 +157,19 @@ There are various ways to use the Palette MCP server tools. The primary way to u
 
 If you specified a `SPECTROCLOUD_DEFAULT_PROJECT_ID` in the `.env-mcp` file, the Palette MCP server will always default to using the provided project ID. If you do not provide a project ID, then the tool call requires you to provide a project ID. You can also provide a different project ID as a parameter to the tool call. Or in other words, if working through an LLM, in the prompt you can specify a different project ID to use.
 
+In Auto-generated tools mode, you can only use the scope provided in the `.env-mcp` file. You cannot specify a different scope in the tool call.
+
 ### API Key
 
 Same behavior as `SPECTROCLOUD_DEFAULT_PROJECT_ID` applies to the API key. If you specified a `SPECTROCLOUD_APIKEY` in the `.env-mcp` file, the Palette MCP server will always default to using the provided API key. If you do not provide an API key, then the tool call requires you to provide an API key. You can also provide a different API key as a parameter to the tool call. This allows you to target different organizations by specifying a different API key.
 
+In Auto-generated tools mode, you can only use the API key provided in the `.env-mcp` file. You cannot specify a different API key in the tool call.
+
 ### Dangerous Actions
 
 To prevent accidental use of dangerous actions, the Palette MCP server requires you to set the `ALLOW_DANGEROUS_ACTIONS` environment variable to `1`. This is a precautionary measure to prevent accidental use of dangerous actions. Review the [Tools](#available-tools) section to understand which tools are dangerous and require approval.
+
+In Auto-generated tools mode, there is no dangerous actions protection. All Palette endpoints are available to use.
 
 ### Accessing Kubeconfig Files
 
@@ -158,15 +177,11 @@ The Palette MCP server provides tools to access kubeconfig files for clusters. Y
 
 Once you have the kubeconfig file locally, assuming your application with an LLM has access to your local filesystem and a shell environment, you can have the application use the kubeconfig file to access the cluster. For example, if you are using Cursor, you can ask it to use the kubeconfig file to with the `kubectl` command to access the cluster.
 
+In Auto-generated tools mode, there is no kubeconfig file downloaded. The tool call will only return the kubeconfig file content.
+
 ### Removing a Cluster
 
 To remove a cluster from Palette, you can use the `deleteClusterByUID` tool. This tool will delete the cluster from Palette. This tool requires the `ALLOW_DANGEROUS_ACTIONS` environment variable to be set to `1`. The tool call supports a `force_delete` parameter to force the deletion of the cluster. However, keep in mind that force delete can only work if the cluster is in the deletion state. A delete request must be initiated without the force delete flag prior to using force delete.
-
-### Accessing Cluster Information
-
-The Palette MCP server provides tools to access cluster information. You can access the cluster information by using the `getClusters` or `getActiveClusters` tools. These tools will return a list of clusters.
-
-### Accessing Cluster Details
 
 ## Development
 
