@@ -68,11 +68,6 @@ tasks:
     cmds:
       - aws ecr-public get-login-password --region us-east-1 --profile ai | docker login --username AWS --password-stdin public.ecr.aws/palette-ai || true
 
-  download-openapi-spec:
-    desc: "Download the OpenAPI spec from the Spectro Cloud API"
-    cmds:
-      - curl --silent -o raw-palette-apis.json https://raw.githubusercontent.com/spectrocloud/librarium/version-4-6/docs/api-content/api-docs/palette-apis.json
-
   convert-openapi:
     desc: "Generate the OpenAPI client"
     # deps: [download-openapi-spec]

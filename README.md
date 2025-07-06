@@ -193,11 +193,18 @@ SPECTROCLOUD_APIKEY=your-api-key
 SPECTROCLOUD_HOST=api.spectrocloud.com
 PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
 ALLOW_DANGEROUS_ACTIONS=0
+AUTO_GENERATE_MCP_TOOLS=0
 ```
 
 Next, issue the command `uv sync --frozen` to install the required Python dependencies.
 
 If you are using a self-hosted Palette instance, you will need to set the `SPECTROCLOUD_HOST` variable to the URL of your Palette instance.
+
+Generate the Palette API spec by issuing the following command. This will generate the `openapi/openapi.yaml` file.
+
+```bash
+task convert-openapi
+```
 
 To start the local development server, issue the following command in the root of the project:
 
