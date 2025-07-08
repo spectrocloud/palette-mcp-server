@@ -145,7 +145,8 @@ async def getClusters(ctx: Context, project_id: Optional[str] = None, api_key: O
                     raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
 
                 json_data = json.loads(data.decode("utf-8"))
-                all_clusters.extend(json_data.get('items', []))
+                items = json_data.get('items') or []
+                all_clusters.extend(items)
 
                 continue_token = json_data.get('listmeta', {}).get('continue')
                 if not continue_token:
