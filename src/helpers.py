@@ -13,12 +13,13 @@ if os.environ.get('PHOENIX_COLLECTOR_ENDPOINT'):
 else:
     tracer = None
 
-def write_kubeconfig_to_temp(cluster_uid: str, kubeconfig_content: str) -> str:
+def write_kubeconfig_to_temp(cluster_uid: str, kubeconfig_content: str, is_admin: bool = False) -> str:
     """Helper function to write kubeconfig content to a temporary file.
     
     Args:
         cluster_uid (str): The UID of the cluster to use in the filename
         kubeconfig_content (str): The kubeconfig content to write
+        is_admin (bool): Whether this is an admin kubeconfig (adds .admin to filename)
         
     Returns:
         str: Path to the written kubeconfig file
@@ -26,7 +27,13 @@ def write_kubeconfig_to_temp(cluster_uid: str, kubeconfig_content: str) -> str:
     temp_dir = tempfile.gettempdir()
     kubeconfig_dir = os.path.join(temp_dir, "kubeconfig")
     os.makedirs(kubeconfig_dir, exist_ok=True)
-    kubeconfig_path = os.path.join(kubeconfig_dir, f"{cluster_uid}.kubeconfig")
+    
+    if is_admin:
+        filename = f"{cluster_uid}.admin.kubeconfig"
+    else:
+        filename = f"{cluster_uid}.kubeconfig"
+    
+    kubeconfig_path = os.path.join(kubeconfig_dir, filename)
     with open(kubeconfig_path, 'w') as f:
         f.write(kubeconfig_content)
     return kubeconfig_path
