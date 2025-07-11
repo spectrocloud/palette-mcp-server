@@ -177,7 +177,7 @@ In Auto-generated tools mode, there is no dangerous actions protection. All Pale
 
 ### Accessing Kubeconfig Files
 
-The Palette MCP server provides tools to access kubeconfig files for clusters. You can access the kubeconfig files by mounting a local folder to the container. In the container, all kubeconfig files are stored in the `/tmp/kubeconfig` folder. If you use the tool calls `getAdminKubeconfig` or `getKubeconfig`, the kubeconfig file will be stored in the `/tmp/kubeconfig` folder. The filename will have the cluster's UID as the name, for example, `68669fcfee517a7f9a91a9e5.kubeconfig`.
+The Palette MCP server provides tools to access kubeconfig files for clusters. You can access the kubeconfig files by mounting a local folder to the container. In the container, all kubeconfig files are stored in the `/tmp/kubeconfig` folder. If you use the tool calls `getAdminKubeconfig` or `getKubeconfig`, the kubeconfig file will be stored in the `/tmp/kubeconfig` folder. The filename will have the cluster's UID as the name, for example, `68669fcfee517a7f9a91a9e5.kubeconfig`. Admin kubeconfig files have the suffix `-admin` in the filename, for example, `68669fcfee517a7f9a91a9e5-admin.kubeconfig`.
 
 Once you have the kubeconfig file locally, assuming your application with an LLM has access to your local filesystem and a shell environment, you can have the application use the kubeconfig file to access the cluster. For example, if you are using Cursor, you can ask it to use the kubeconfig file to with the `kubectl` command to access the cluster.
 

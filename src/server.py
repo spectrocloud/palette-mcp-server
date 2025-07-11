@@ -5,7 +5,7 @@ from fastmcp import FastMCP, Context
 from fastmcp.server.openapi import RouteMap, MCPType
 from context import MCPSessionContext
 from helpers import cleanup_temp_files, create_signal_handler
-from tools import getClusters, getClusterProfiles, getClusterProfileByUID, getActiveClusters, getClusterDetailsByUID, deleteClusterByUID, deleteClusterProfileByUID, getAdminKubeconfig, getKubeconfig, getPodsInCluster, analyzeCluster, prepareUnhealthyClusterNotificationMessage, sendSlackNotificationForUnhealthyCluster
+from tools import getClusters, getClusterProfiles, getClusterProfileByUID, getActiveClusters, getClusterDetailsByUID, deleteClusterByUID, deleteClusterProfileByUID, getAdminKubeconfig, getKubeconfig, getPodsInCluster, analyzeCluster
 from openapi import load_openapi_spec, generate_mcp_names
 
 logger = logging.getLogger('palette_mcp_server')
