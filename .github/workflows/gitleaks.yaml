@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   gitleaks-pr-scan:
-    runs-on: [self-hosted, Linux, X64, spectrocloud-labs]
+    runs-on: ubuntu-latest
     container:
       image: gcr.io/spectro-dev-public/bulwark/gitleaks:latest
       env:
