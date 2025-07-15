@@ -1,0 +1,1 @@
+* @spectrocloud/palette-artificial-intelligence-research
