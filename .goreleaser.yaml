@@ -1,6 +1,3 @@
-# GoReleaser configuration for Docker-only releases
-# Documentation: https://goreleaser.com/customization/docker/
-
 version: 2
 
 project_name: palette-mcp-server
