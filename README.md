@@ -90,7 +90,7 @@ Next, use the Palette MCP server, add the following MCP configuration to your ap
         "type=bind,source=/FILE_PATH_REPLACE_ME/kubeconfig,target=/tmp/kubeconfig",
         "--env-file",
         "/FILE_PATH_REPLACE_ME/.env-mcp",
-        "public.ecr.aws/palette-ai/palette-mcp-server:dev"
+        "public.ecr.aws/palette-ai/palette-mcp-server:latest"
       ]
     }
   }
@@ -122,7 +122,7 @@ However, this is not recommended as it may create a scecario where this could ge
         "SPECTROCLOUD_DEFAULT_PROJECT_ID=your-project-id",
         "-e",
         "ALLOW_DANGEROUS_ACTIONS=0",
-        "public.ecr.aws/palette-ai/palette-mcp-server:dev"
+        "public.ecr.aws/palette-ai/palette-mcp-server:latest"
       ]
     }
   }
@@ -142,7 +142,7 @@ docker ps | grep palette-ai/palette-mcp-server
 For example, if you are using Cursor, an output similar to the following should be displayed:
 
 ```shell
-de70907c4b6f   public.ecr.aws/palette-ai/palette-mcp-server:dev   "uv run python src/s…"   2 minutes ago   Up 2 minutes             palette-mcp-cursor
+de70907c4b6f   public.ecr.aws/palette-ai/palette-mcp-server:latest   "uv run python src/s…"   2 minutes ago   Up 2 minutes             palette-mcp-cursor
 ```
 
 Next, issue a prompt that uses the Palette MCP server tools. For example, you can issue the following command:
