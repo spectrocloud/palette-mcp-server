@@ -106,7 +106,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Configure AWS credentials from Docs account
+      - name: Configure AWS credentials from AI Research account
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.CI_CD_IAM_ROLE }}
