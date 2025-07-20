@@ -3,18 +3,21 @@ import os, logging, signal, sys, atexit, operator
 import httpx
 from fastmcp import FastMCP, Context
 from fastmcp.server.openapi import RouteMap, MCPType
+from fastmcp.utilities.logging import get_logger
 from context import MCPSessionContext
 from helpers import cleanup_temp_files, create_signal_handler
 from tools import getClusters, getClusterProfiles, getClusterProfileByUID, getActiveClusters, getClusterDetailsByUID, deleteClusterByUID, deleteClusterProfileByUID, getAdminKubeconfig, getKubeconfig, getPodsInCluster, analyzeCluster
 from openapi import load_openapi_spec, generate_mcp_names
 
-logger = logging.getLogger('palette_mcp_server')
-logger.info("Starting Palette MCP Server")
+# Use FastMCP's logging utility for server-side logging
+logger = get_logger('palette_mcp_server')
+version = os.environ.get('VERSION', 'unknown')
+logger.info(f"Starting Palette MCP Server {version}")
 
  
 palette_host = os.environ.get('SPECTROCLOUD_HOST')
 palette_apikey = os.environ.get('SPECTROCLOUD_APIKEY')
-default_project_id = os.environ.get('SPECTROCLOUD_DEFAULT_PROJECT_ID')
+default_project_id = os.environ.get('SPECTROCLOUD_DEFAULT_PROJECT_ID') or ''
 allow_dangerous_actions = os.environ.get('ALLOW_DANGEROUS_ACTIONS') == '1'
 all_palette_apis = os.environ.get('AUTO_GENERATE_MCP_TOOLS') == '1'
 
@@ -59,7 +62,7 @@ if all_palette_apis:
     
 else:
     openapi_spec = None 
-    mcp = FastMCP("Palette MCP Server")
+    mcp = FastMCP("Palette MCP Server", version=version)
     # Safe tools (always loaded)
     SAFE_TOOLS = [
         getClusters,
@@ -103,7 +106,7 @@ if __name__ == "__main__":
       if all_palette_apis:
         client = httpx.AsyncClient(
             base_url=f"https://{palette_host}",
-            headers={"Apikey": palette_apikey, "ProjectUID": default_project_id},
+            headers={"apiKey": palette_apikey, "projectUID": default_project_id},
             timeout=20
         )
         mcp = FastMCP.from_openapi(

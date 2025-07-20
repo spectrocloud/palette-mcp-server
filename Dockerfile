@@ -3,6 +3,10 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
 ARG K8SGPT_VERSION=0.4.16
 ARG KUBELOGIN_VERSION=1.32.4
+ARG VERSION=0.0.1
+
+# Make VERSION available as environment variable
+ENV VERSION=${VERSION}
 
 # Install build tools and download binaries
 RUN apt-get update -y && apt-get upgrade -y && \
@@ -24,11 +28,22 @@ RUN uv sync --frozen
 
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
-LABEL org.opencontainers.image.description="Palette MCP Server"
+LABEL org.opencontainers.image.title="Palette MCP Server"
+LABEL org.opencontainers.image.description="An MCP server for Palette"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.source=https://github.com/palette-ai/palette-mcp-server
+LABEL org.opencontainers.image.version=${VERSION}
+LABEL org.opencontainers.image.vendor="Spectro Cloud"
+
+
 
 # ENV K8SGPT_BACKEND=openai
 # ENV K8SGPT_AI_PROVIDER=openai
 # ENV K8SGPT_MODEL=gpt-4
+
+# Copy VERSION from builder stage
+ARG VERSION=0.0.1
+ENV VERSION=${VERSION}
 
 RUN apt-get update -y && \
     apt-get install -y ca-certificates && \
