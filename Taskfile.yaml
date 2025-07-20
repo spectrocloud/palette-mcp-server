@@ -60,8 +60,11 @@ tasks:
     desc: "Build the Docker image. Example: task build-image -- dev"
     cmds:
       - docker buildx create --name multiarch --use || true
-      - docker buildx build --platform linux/amd64,linux/arm64 -t public.ecr.aws/palette-ai/palette-mcp-server:{{.CLI_ARGS}}  . --push
+      - docker buildx build --platform linux/amd64,linux/arm64 --build-arg VERSION={{.VERSION}} -t public.ecr.aws/palette-ai/palette-mcp-server:{{.CLI_ARGS}}  . --push
       - docker buildx rm multiarch || true
+    vars:
+      VERSION:
+        sh: svu next
 
   ecr-login:
     desc: "Login to ECR using Palette AI AWS account"

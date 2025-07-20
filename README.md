@@ -161,7 +161,7 @@ There are various ways to use the Palette MCP server tools. The primary way to u
 
 If you specified a `SPECTROCLOUD_DEFAULT_PROJECT_ID` in the `.env-mcp` file, the Palette MCP server will always default to using the provided project ID. If you do not provide a project ID, then the tool call requires you to provide a project ID. You can also provide a different project ID as a parameter to the tool call. Or in other words, if working through an LLM, in the prompt you can specify a different project ID to use.
 
-In Auto-generated tools mode, you can only use the scope provided in the `.env-mcp` file. You cannot specify a different scope in the tool call.
+In Auto-generated tools mode, you can only use the scope provided in the `.env-mcp` file. You cannot specify a different scope in the tool call. Another limitation is the inability to use a tool call that should not include a Project ID in the tool call. For example, if you use a tool call that should not include a Project ID in the tool call, then you must set the environment variable `SPECTROCLOUD_DEFAULT_PROJECT_ID` to an empty string. This will require you to restart the MCP server in the application you using with the Palette MCP server.
 
 ### API Key
 
