@@ -1,0 +1,74 @@
+# GoReleaser configuration for Docker-only releases
+# Documentation: https://goreleaser.com/customization/docker/
+
+version: 2
+
+project_name: palette-mcp-server
+
+builds:
+  - skip: true
+
+dockers:
+  - image_templates:
+      - "public.ecr.aws/palette-ai/palette-mcp-server:{{ .Tag }}-amd64"
+    dockerfile: Dockerfile
+    use: buildx
+    goarch: amd64
+    extra_files:
+      - pyproject.toml
+      - uv.lock
+      - src/
+      - README.md
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--build-arg=VERSION={{.Version}}"
+  - image_templates:
+      - "public.ecr.aws/palette-ai/palette-mcp-server:{{ .Tag }}-arm64"
+    dockerfile: Dockerfile
+    use: buildx
+    goarch: arm64
+    extra_files:
+      - pyproject.toml
+      - uv.lock
+      - src/
+      - README.md
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--build-arg=VERSION={{.Version}}"
+
+docker_manifests:
+  - name_template: "public.ecr.aws/palette-ai/palette-mcp-server:{{ .Tag }}"
+    image_templates:
+      - "public.ecr.aws/palette-ai/palette-mcp-server:{{ .Tag }}-amd64"
+      - "public.ecr.aws/palette-ai/palette-mcp-server:{{ .Tag }}-arm64"
+  - name_template: "public.ecr.aws/palette-ai/palette-mcp-server:latest"
+    image_templates:
+      - "public.ecr.aws/palette-ai/palette-mcp-server:{{ .Tag }}-amd64"
+      - "public.ecr.aws/palette-ai/palette-mcp-server:{{ .Tag }}-arm64"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+report_sizes: true
+release:
+  disable: false
+  footer: >-
+    **Full Changelog**: https://github.com/spectro-cloud/palette-mcp-server/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+    ---
+
+    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
