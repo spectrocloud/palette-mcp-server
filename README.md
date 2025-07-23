@@ -9,6 +9,10 @@ The Palette MCP server is tool for interacting with Palette through the Model Co
 > [!WARNING]
 > This is an experimental project and subject to breaking changes.
 
+The Palette MCP is a local-first MCP server. The MCP server is hosted in a container that is deployed on your machine. API calls to Palette are sourced from your local machine and target the configured Palette instance.
+
+![Architecture diagram showing the Palette MCP deployed locally and making API calls to Palette](./public/images/arch_diagram.png)
+
 ### Curated Tools Mode
 
 The Palette MCP server provides the following tools. Checkout the [Usage](#usage) section to learn more about how to use the tools. Some tools require explicit enablement before they can be used. Refer to the [Dangerous Actions](#dangerous-actions) section for more information.
@@ -110,10 +114,10 @@ However, this is not recommended as it may create a scecario where this could ge
       "command": "docker",
       "args": [
         "run",
-        "--rm",
         "-i",
-        "-v",
-        "/tmp/kubeconfig:/tmp/kubeconfig",
+        "--mount",
+        "type=bind,source=/FILE_PATH_REPLACE_ME/kubeconfig,target=/tmp/kubeconfig",
+        "--rm",
         "-e",
         "SPECTROCLOUD_HOST=api.spectrocloud.com",
         "-e",
@@ -178,6 +182,9 @@ In Auto-generated tools mode, there is no dangerous actions protection. All Pale
 ### Accessing Kubeconfig Files
 
 The Palette MCP server provides tools to access kubeconfig files for clusters. You can access the kubeconfig files by mounting a local folder to the container. In the container, all kubeconfig files are stored in the `/tmp/kubeconfig` folder. If you use the tool calls `getAdminKubeconfig` or `getKubeconfig`, the kubeconfig file will be stored in the `/tmp/kubeconfig` folder. The filename will have the cluster's UID as the name, for example, `68669fcfee517a7f9a91a9e5.kubeconfig`. Admin kubeconfig files have the suffix `-admin` in the filename, for example, `68669fcfee517a7f9a91a9e5-admin.kubeconfig`.
+
+> [!WARNING]
+> The folder you use to mount to the container will be wiped when the container is stopped and started again. The Palette MCP server will automatically remove the kubeconfig files from its /tmp/kubeconfig folder.
 
 Once you have the kubeconfig file locally, assuming your application with an LLM has access to your local filesystem and a shell environment, you can have the application use the kubeconfig file to access the cluster. For example, if you are using Cursor, you can ask it to use the kubeconfig file to with the `kubectl` command to access the cluster.
 
