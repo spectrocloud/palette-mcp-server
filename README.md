@@ -90,6 +90,8 @@ Next, use the Palette MCP server, add the following MCP configuration to your ap
         "run",
         "--rm",
         "-i",
+        "--pull",
+        "always",
         "--mount",
         "type=bind,source=/FILE_PATH_REPLACE_ME/kubeconfig,target=/tmp/kubeconfig",
         "--env-file",
