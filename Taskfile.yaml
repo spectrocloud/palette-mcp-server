@@ -77,7 +77,7 @@ tasks:
     cmds:
       - echo "Current working directory:" && pwd && ls -la raw-palette-apis.json
       - |
-        npx @openapitools/openapi-generator-cli generate \
+        npx --yes @openapitools/openapi-generator-cli generate \
         -g openapi-yaml \
         -i /local/raw-palette-apis.json \
         -o /local
