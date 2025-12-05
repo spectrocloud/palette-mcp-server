@@ -219,6 +219,8 @@ Generate the Palette API spec by issuing the following command. This will genera
 task convert-openapi
 ```
 
+> To install the task Command Line, please refer to [Task Installation](https://taskfile.dev/docs/installation).
+
 To start the local development server, issue the following command in the root of the project:
 
 ```bash
