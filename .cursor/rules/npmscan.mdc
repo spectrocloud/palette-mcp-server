@@ -1,0 +1,358 @@
+---
+description: "Bulwark NPM Security - Scan for compromised packages before installation or execution. Source: https://github.com/spectrocloud/bulwark/blob/main/.cursor/rules/npmscan.mdc"
+alwaysApply: true
+---
+
+# Bulwark NPM Package Security
+
+## CORE PRINCIPLE
+
+**Never install, update, or execute Node/JS packages without a Bulwark scan first.**
+
+Before doing anything that changes or runs npm/yarn/pnpm/bun–related packages, you MUST:
+
+1. Ensure dependency changes are reflected in `package.json` / lockfiles if applicable.
+
+2. Call `bulwark_scan_project(path: /absolute/path/to/project)`.
+
+3. Act based on the scan result (CLEAN / WARNING / CRITICAL / ERROR) as defined below.
+
+---
+
+## AUTOMATIC SCANNING REQUIRED
+
+**ALWAYS automatically scan when user or agent requests ANY of these:**
+
+### 1. Direct package manager commands
+
+Trigger a scan before running ANY of these (or variants):
+
+#### npm
+
+- `npm install` / `npm i` / `npm ci`
+
+- `npm install <pkg>` / `npm install <pkg>@<version>`
+
+- `npm install --save <pkg>` / `--save-dev` / `--save-peer`
+
+- `npm update` / `npm update <pkg>`
+
+- `npm upgrade` (even if informal usage)
+
+- `npm audit fix` / `npm audit fix --force`
+
+#### yarn
+
+- `yarn` / `yarn install`
+
+- `yarn add <pkg>` (any flags)
+
+- `yarn upgrade` / `yarn upgrade <pkg>` / `yarn upgrade-interactive`
+
+- `yarn up` / `yarn up <pkg>`
+
+#### pnpm
+
+- `pnpm install` / `pnpm i`
+
+- `pnpm add <pkg>` (any flags, e.g. `-D`, `--save-dev`)
+
+- `pnpm update` / `pnpm up` / `pnpm update <pkg>`
+
+#### bun
+
+- `bun install`
+
+- `bun add <pkg>` (any flags, e.g. `-d`)
+
+**Rule:** If a command mentions `npm`, `yarn`, `pnpm`, or `bun` with verbs like `install`, `add`, `update`, `upgrade`, `up`, `ci`, you MUST scan first.
+
+---
+
+### 2. Execution without adding to dependencies
+
+These can run compromised packages without adding them to `dependencies`.
+
+ALWAYS scan before:
+
+- `npx <pkg>` / `npx <pkg>@<version>`
+
+- `npm exec <pkg>`
+
+- `pnpm dlx <pkg>`
+
+- `bunx <pkg>`
+
+Also when user says things like:
+
+- "Run `npx create-next-app`"
+
+- "Use `npm exec` to run this CLI"
+
+---
+
+### 3. Global installs
+
+If installing globally, scan before:
+
+- `npm install -g <pkg>` / `npm i -g <pkg>`
+
+- `npm update -g <pkg>`
+
+- `yarn global add <pkg>` / `yarn global upgrade <pkg>`
+
+- `pnpm add -g <pkg>` / `pnpm update -g <pkg>`
+
+- `bun add -g <pkg>`
+
+---
+
+### 4. Monorepo / workspace operations
+
+Scan before any workspace-related dependency changes, e.g.:
+
+- `yarn workspace <name> add <pkg>`
+
+- `yarn workspace <name> remove <pkg>`
+
+- `yarn workspaces focus <name>`
+
+- `pnpm install --filter <pattern>`
+
+- `pnpm add <pkg> --filter <name>`
+
+- `pnpm recursive install` / `pnpm -r install`
+
+- `pnpm recursive update`
+
+**Always scan from the monorepo root** when using workspaces/filters/recursive installs.
+
+---
+
+### 5. Installing from git, tarball, or local path
+
+Scan before commands like:
+
+- `npm install git+https://...`
+
+- `npm install https://.../file.tgz`
+
+- `npm install ./local-folder` or `../relative/path`
+
+- `yarn add <git-url>` / `yarn add file:./local-lib`
+
+- `pnpm add ./relative/path` / `pnpm add <git-url>`
+
+- `bun add file:./local-lib`
+
+**If the install target looks like a git URL, HTTP(S) URL, archive, or filesystem path, you MUST scan.**
+
+---
+
+### 6. package.json & lockfile edits (even without CLI)
+
+Automatically scan when user or agent asks to:
+
+- Add, update, or remove dependencies in:
+
+  - `dependencies`
+
+  - `devDependencies`
+
+  - `peerDependencies`
+
+  - `optionalDependencies`
+
+  - `bundledDependencies`
+
+- Change versions (e.g. pinning to a specific version or range).
+
+- Regenerate or directly edit:
+
+  - `package-lock.json`
+
+  - `pnpm-lock.yaml`
+
+  - `yarn.lock`
+
+**Process:**
+
+1. Apply the requested change to `package.json` and/or lockfiles.
+
+2. Run `bulwark_scan_project`.
+
+3. Only then may you propose or run any install commands.
+
+---
+
+### 7. Scripts that indirectly run installs
+
+If the user asks to run a script that likely installs or updates dependencies, you MUST scan first.
+
+Examples:
+
+- `npm run setup`
+
+- `npm run bootstrap`
+
+- `yarn bootstrap`
+
+- `npm run deps`
+
+- `pnpm run setup`
+
+If the script name or contents (in `package.json` scripts) include `npm install`, `yarn install`, `pnpm install`, `bun install`, or similar, treat running that script as equivalent to running an install → **scan first**.
+
+---
+
+### 8. High-level "do it for me" requests
+
+Scan whenever the user/agent asks for generic dependency management, including:
+
+- "Set up the project dependencies"
+
+- "Install whatever packages are needed"
+
+- "Add all packages required for React/Express/etc."
+
+- "Configure linting/formatting/testing with the required packages"
+
+- "Initialize a Node project with all necessary dependencies"
+
+If the action implies adding/updating/removing Node/JS packages, **you MUST scan.**
+
+---
+
+## SCAN SCOPE & INTERPRETATION
+
+### What bulwark_scan_project must cover
+
+- ALL dependency types:
+
+  - `dependencies`, `devDependencies`, `peerDependencies`, `optionalDependencies`, `bundledDependencies`
+
+- ALL relevant manifests/lockfiles:
+
+  - `package.json`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`
+
+- BOTH direct **and transitive** dependencies:
+
+  - If any compromised package is found at any depth, treat it as compromised.
+
+---
+
+## SCAN PROCESS
+
+1. **When user/agent requests a package operation** (any of the triggers above):
+
+   - **FIRST: Verify `bulwark_scan_project` MCP tool is available** (see MCP AVAILABILITY CHECK above).
+
+   - If MCP is not available, STOP and inform user to initialize Bulwark MCP.
+
+   - Reflect the requested changes into `package.json` / lockfiles if needed.
+
+   - Then immediately call:
+
+     - `bulwark_scan_project(path: /absolute/path/to/project)`
+
+2. **Then act based on results:**
+
+   ✅ **CLEAN** → You may proceed with the requested command:
+
+   - e.g., `npm install`, `yarn add`, `pnpm install`, `bun install`, `npx <pkg>`, etc.
+
+   🔴 **CRITICAL** → STOP and alert:
+
+   ```
+   ⚠️ SECURITY ALERT: Compromised package detected!
+
+   Package: [name] v[version]
+   Severity: CRITICAL
+
+   This package is known to be compromised. Installation / execution blocked.
+
+   The package will NOT be installed or executed.
+
+   Please choose an alternative package or safe version.
+   ```
+
+   ⚠️ **WARNING** → Alert and verify with user:
+
+   ```
+   ⚠️ CAUTION: Package has known compromised versions.
+
+   Package: [name] v[version]
+
+   The specific version may be safe, but there is associated risk.
+
+   I recommend choosing an alternative package or a verified safe version.
+
+   Do you still want to proceed?
+   ```
+
+   **Only proceed with WARNING if the user explicitly confirms.**
+
+   ❌ **ERROR / UNKNOWN / TIMEOUT** (scan fails in any way) → DO NOT PROCEED:
+
+   ```
+   ❌ SECURITY SCAN FAILED
+
+   The security scan (bulwark_scan_project) did not complete successfully.
+
+   Reason: [error message]
+
+   To stay safe, I will NOT run any package installation or execution command automatically.
+
+   You can retry the scan or review dependencies manually.
+   ```
+
+---
+
+## FIXING COMPROMISED PACKAGES
+
+If compromised packages are found:
+
+1. **Alert user immediately** with:
+
+   - Package name
+
+   - Version
+
+   - Severity
+
+   - (Optional) short reason if provided by MCP
+
+2. **Do NOT install, update, or execute the compromised package.**
+
+3. **Remove it from package.json and lockfiles** if it was just added/changed by this operation.
+
+4. **Ask the user to:**
+
+   - Choose an alternative package, or
+
+   - Select a known-safe version.
+
+5. **Apply user's choice** to manifests and re-run `bulwark_scan_project`.
+
+6. **Only proceed with install/exec after a CLEAN result** (or WARNING explicitly accepted).
+
+7. **When applicable, document the security issue** in PR/commit messages, for example:
+
+   ```
+   Bulwark NPM Security: blocked install of compromised package(s):
+   - [name]@[version] – Severity: [CRITICAL/WARNING] – [short reason]
+   ```
+
+---
+
+## SECURITY PRINCIPLES
+
+- **Scan before install or execution, not after.**
+
+- **Block CRITICAL packages automatically** (no install, no exec).
+
+- **Require explicit user consent for WARNING-level risk.**
+
+- **Treat all package managers and entrypoints** (install, update, exec, npx, global, workspaces) equally.
+
+- **If in doubt whether something touches Node packages, assume it does and SCAN.**
