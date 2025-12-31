@@ -1,3 +1,6 @@
+# Copyright (c) Spectro Cloud
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Any
 import os, logging, signal, sys, atexit, operator
 import httpx
@@ -19,6 +22,7 @@ palette_host = os.environ.get('SPECTROCLOUD_HOST')
 palette_apikey = os.environ.get('SPECTROCLOUD_APIKEY')
 default_project_id = os.environ.get('SPECTROCLOUD_DEFAULT_PROJECT_ID') or ''
 allow_dangerous_actions = os.environ.get('ALLOW_DANGEROUS_ACTIONS') == '1'
+kapa_apikey = os.environ.get('KAPA_API_KEY') or ''
 all_palette_apis = os.environ.get('AUTO_GENERATE_MCP_TOOLS') == '1'
 
 if allow_dangerous_actions:
@@ -31,6 +35,10 @@ if not palette_host:
 if not palette_apikey:
     logger.error("SPECTROCLOUD_APIKEY environment variable is required but not set. Please set the SPECTROCLOUD_APIKEY environment variable for tracing.")
     exit(1)
+    
+if kapa_apikey:
+    logger.info("KAPA_API_KEY environment variable is set. Enabling Palette MCP Proxy Server.")
+
 
 phoenix_endpoint = os.environ.get('PHOENIX_COLLECTOR_ENDPOINT')
 if not phoenix_endpoint:
@@ -92,6 +100,45 @@ else:
         default_project_id=default_project_id,
         allow_dangerous_actions=allow_dangerous_actions
     )
+
+    # =========================================================================
+    # MCP Proxy Servers Configuration
+    # Add new MCP servers here. Each entry will be mounted as a proxy.
+    # =========================================================================
+    MCP_PROXY_SERVERS = []
+
+    # Kapa docs search proxy (requires KAPA_API_KEY) - This is an internal Spectro Cloud use case and not applicable to the public's use of the Palette MCP server.
+    if kapa_apikey:
+        MCP_PROXY_SERVERS.append({
+            "prefix": "docs",
+            "name": "Spectro Cloud Docs Search",
+            "config": {
+                "mcpServers": {
+                    "kapa": {
+                        "url": "https://spectro-cloud-server.mcp.kapa.ai",
+                        "transport": "http",
+                        "headers": {
+                            "Authorization": f"Bearer {kapa_apikey}",
+                        },
+                    }
+                }
+            }
+        })
+
+    # Add more MCP proxy servers here (unconditionally or with their own conditions)
+    # MCP_PROXY_SERVERS.append({...})
+
+    # Mount all configured MCP proxy servers
+    for server_config in MCP_PROXY_SERVERS:
+        try:
+            proxy = FastMCP.as_proxy(
+                server_config["config"],
+                name=server_config["name"]
+            )
+            mcp.mount(server_config["prefix"], proxy)
+            logger.info(f"Mounted MCP proxy: {server_config['name']} at prefix '{server_config['prefix']}'")
+        except Exception as e:
+            logger.warning(f"Failed to mount MCP proxy {server_config['name']}: {e}")
 
 if __name__ == "__main__":
     # Register cleanup function to run on normal exit

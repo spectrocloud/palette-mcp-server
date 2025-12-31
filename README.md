@@ -207,7 +207,11 @@ SPECTROCLOUD_HOST=api.spectrocloud.com
 PHOENIX_COLLECTOR_ENDPOINT=http://localhost:6006/v1/traces
 ALLOW_DANGEROUS_ACTIONS=0
 AUTO_GENERATE_MCP_TOOLS=0
+KAPA_API_KEY=your-kapa-api-key
 ```
+
+> [!NOTE]
+> The `KAPA_API_KEY` is an internal Spectro Cloud use case and not applicable to the public's use of the Palette MCP server. It's intended for server-side use scenarios only.
 
 Next, issue the command `uv sync --frozen` to install the required Python dependencies.
 

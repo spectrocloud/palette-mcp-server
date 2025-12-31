@@ -1,3 +1,6 @@
+# Copyright (c) Spectro Cloud
+# SPDX-License-Identifier: Apache-2.0
+
 import http.client
 import json
 from typing import Dict, TypedDict, Any, List, Optional, Union
