@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright (c) Spectro Cloud
+# SPDX-License-Identifier: Apache-2.0
+
 
 # Palette MCP Server Inspector Startup Script
 # This script starts the MCP Inspector with the correct configuration for the Palette MCP server

@@ -1,3 +1,6 @@
+# Copyright (c) Spectro Cloud
+# SPDX-License-Identifier: Apache-2.0
+
 # Build stage - download binaries and build dependencies
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 

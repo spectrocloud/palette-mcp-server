@@ -1,3 +1,6 @@
+# Copyright (c) Spectro Cloud
+# SPDX-License-Identifier: Apache-2.0
+
 version: "3"
 
 tasks:
@@ -82,3 +85,7 @@ tasks:
         -g openapi-yaml \
         -i /local/raw-palette-apis.json \
         -o /local
+  license:
+    desc: "Add license headers to the files"
+    cmds:
+      - copywrite headers .

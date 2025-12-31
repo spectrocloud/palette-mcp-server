@@ -1,3 +1,6 @@
+# Copyright (c) Spectro Cloud
+# SPDX-License-Identifier: Apache-2.0
+
 from typing import Any
 import os, logging, signal, sys, atexit, operator
 import httpx
