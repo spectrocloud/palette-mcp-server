@@ -107,7 +107,7 @@ else:
     # Kapa docs search proxy (requires KAPA_API_KEY) - This is an internal Spectro Cloud use case and not applicable to the public's use of the Palette MCP server.
     if kapa_apikey:
         MCP_PROXY_SERVERS.append({
-            "prefix": "",
+            "prefix": "docs",
             "name": "Spectro Cloud Docs Search",
             "config": {
                 "mcpServers": {
