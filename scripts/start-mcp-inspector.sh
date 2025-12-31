@@ -42,7 +42,13 @@ if ! command -v npx &> /dev/null; then
     exit 1
 fi
 
+# Check if KAPA_API_KEY is set
+KAPA_API_KEY_ENABLED=false
+if [ -n "${KAPA_API_KEY}" ]; then
+    KAPA_API_KEY_ENABLED=true
+fi
 echo "🔧 Setting environment variables..."
+
 
 # Set environment variables
 export DANGEROUSLY_OMIT_AUTH="true"
@@ -59,6 +65,7 @@ echo "   Phoenix Endpoint: ${PHOENIX_COLLECTOR_ENDPOINT}"
 echo "   Auth Disabled: ${DANGEROUSLY_OMIT_AUTH}"
 echo "   Dangerous Actions: ${ALLOW_DANGEROUS_ACTIONS}"
 echo "   Auto Generate MCP Tools: ${AUTO_GENERATE_MCP_TOOLS}"
+echo "   Kapa API Key Enabled: ${KAPA_API_KEY_ENABLED}" 
 echo ""
 echo "📖 Inspector will be available at: http://localhost:6274"
 echo "🛑 Press Ctrl+C to stop the inspector"
@@ -71,4 +78,5 @@ exec npx @modelcontextprotocol/inspector \
     -e "PHOENIX_COLLECTOR_ENDPOINT=${PHOENIX_COLLECTOR_ENDPOINT}" \
     -e "ALLOW_DANGEROUS_ACTIONS=${ALLOW_DANGEROUS_ACTIONS}" \
     -e "AUTO_GENERATE_MCP_TOOLS=${AUTO_GENERATE_MCP_TOOLS}" \
+    -e "KAPA_API_KEY=${KAPA_API_KEY}" \
     -- uv run python src/server.py 
