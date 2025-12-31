@@ -213,3 +213,5 @@ __marimo__/
 openapi/
 palette-apis.json
 test.py
+
+tmp/
