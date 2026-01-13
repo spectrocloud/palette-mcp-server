@@ -1156,8 +1156,3 @@ async def deleteClusterProfileByUID(ctx: Context, clusterprofile_uid: str, proje
                 "content": [{"type": "text", "text": error_message}],
                 "isError": True
             }
-            
-            
-            
-            
-            
