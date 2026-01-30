@@ -185,6 +185,98 @@ async def getClusters(ctx: Context, project_id: Optional[str] = None, api_key: O
                 "isError": True
             }
 
+
+async def gather_manage_clusterprofiles(
+    ctx: Context,
+    action: str,
+    uid: Optional[str] = None,
+    project_id: Optional[str] = None,
+    api_key: Optional[str] = None
+) -> MCPResult:
+    """Manage cluster profiles in Palette.
+    
+    Args:
+        action: The operation to perform. Must be one of:
+            - "list": Get all cluster profiles in the project
+            - "get": Get detailed information about a specific cluster profile (requires uid)
+            - "delete": Delete a cluster profile (requires uid, requires ALLOW_DANGEROUS_ACTIONS=1)
+        uid: The UID of the cluster profile. Required for "get" and "delete" actions.
+        project_id: Optional project ID override.
+        api_key: Optional API key override.
+    """
+    session_ctx = get_session_context(ctx)
+    
+    with create_span("gather_manage_clusterprofiles") as span:
+        safe_set_tool(
+            span,
+            name="gather_manage_clusterprofiles",
+            description="Manage cluster profiles in Palette - list, get details, or delete",
+            parameters={
+                "action": {"type": "string", "description": "The operation: 'list', 'get', or 'delete'"},
+                "uid": {"type": "string", "description": "The UID of the cluster profile (required for get/delete)"},
+                "project_id": {"type": "string", "description": "The ID of the project (optional)"},
+                "api_key": {"type": "string", "description": "The API key (optional)"}
+            }
+        )
+        
+        safe_set_input(span, {
+            "action": action,
+            "uid": uid
+        })
+        
+        # Validate action - only get, list, delete are allowed.
+        if action not in ["list", "get", "delete"]:
+            error_msg = f"Error: Invalid action '{action}'. Only 'get', 'list', and 'delete' are allowed actions."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for get.
+        if action == "get" and not uid:
+            error_msg = "Error: The 'get' action requires a cluster profile UID. Use action='list' first to retrieve all cluster profiles and identify the UID of the profile you are interested in."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for delete.
+        if action == "delete" and not uid:
+            error_msg = "Error: The 'delete' action requires a cluster profile UID. Use action='list' to retrieve all cluster profiles and identify the UID of the profile you want to delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Check dangerous action permission for delete.
+        if action == "delete" and not session_ctx.is_dangerous_actions_allowed():
+            error_msg = "Error: The 'delete' action is not allowed. The ALLOW_DANGEROUS_ACTIONS environment variable must be set to '1' to enable dangerous operations like delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Route to appropriate helper.
+        if action == "list":
+            result = await _list_cluster_profiles(ctx, project_id, api_key)
+        elif action == "get":
+            result = await _get_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        elif action == "delete":
+            result = await _delete_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        
+        if not result.get("isError", False):
+            safe_set_span_status(span, "OK")
+        
+        return result
+
 async def getActiveClusters(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Queries the Palette API to find all active clusters in a given project. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
   the context will not be used. Instead, the project_id and api_key will be used directly.
@@ -339,6 +431,98 @@ async def getActiveClusters(ctx: Context, project_id: Optional[str] = None, api_
                 "isError": True
             }
 
+
+async def gather_manage_clusterprofiles(
+    ctx: Context,
+    action: str,
+    uid: Optional[str] = None,
+    project_id: Optional[str] = None,
+    api_key: Optional[str] = None
+) -> MCPResult:
+    """Manage cluster profiles in Palette.
+    
+    Args:
+        action: The operation to perform. Must be one of:
+            - "list": Get all cluster profiles in the project
+            - "get": Get detailed information about a specific cluster profile (requires uid)
+            - "delete": Delete a cluster profile (requires uid, requires ALLOW_DANGEROUS_ACTIONS=1)
+        uid: The UID of the cluster profile. Required for "get" and "delete" actions.
+        project_id: Optional project ID override.
+        api_key: Optional API key override.
+    """
+    session_ctx = get_session_context(ctx)
+    
+    with create_span("gather_manage_clusterprofiles") as span:
+        safe_set_tool(
+            span,
+            name="gather_manage_clusterprofiles",
+            description="Manage cluster profiles in Palette - list, get details, or delete",
+            parameters={
+                "action": {"type": "string", "description": "The operation: 'list', 'get', or 'delete'"},
+                "uid": {"type": "string", "description": "The UID of the cluster profile (required for get/delete)"},
+                "project_id": {"type": "string", "description": "The ID of the project (optional)"},
+                "api_key": {"type": "string", "description": "The API key (optional)"}
+            }
+        )
+        
+        safe_set_input(span, {
+            "action": action,
+            "uid": uid
+        })
+        
+        # Validate action - only get, list, delete are allowed.
+        if action not in ["list", "get", "delete"]:
+            error_msg = f"Error: Invalid action '{action}'. Only 'get', 'list', and 'delete' are allowed actions."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for get.
+        if action == "get" and not uid:
+            error_msg = "Error: The 'get' action requires a cluster profile UID. Use action='list' first to retrieve all cluster profiles and identify the UID of the profile you are interested in."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for delete.
+        if action == "delete" and not uid:
+            error_msg = "Error: The 'delete' action requires a cluster profile UID. Use action='list' to retrieve all cluster profiles and identify the UID of the profile you want to delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Check dangerous action permission for delete.
+        if action == "delete" and not session_ctx.is_dangerous_actions_allowed():
+            error_msg = "Error: The 'delete' action is not allowed. The ALLOW_DANGEROUS_ACTIONS environment variable must be set to '1' to enable dangerous operations like delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Route to appropriate helper.
+        if action == "list":
+            result = await _list_cluster_profiles(ctx, project_id, api_key)
+        elif action == "get":
+            result = await _get_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        elif action == "delete":
+            result = await _delete_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        
+        if not result.get("isError", False):
+            safe_set_span_status(span, "OK")
+        
+        return result
+
 async def getClusterDetailsByUID(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Queries the Palette API to find detailed information about a specific cluster. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
   the context will not be used. Instead, the project_id and api_key will be used directly.
@@ -411,6 +595,98 @@ async def getClusterDetailsByUID(ctx: Context, cluster_uid: str, project_id: Opt
                 "content": [{"type": "text", "text": error_message}],
                 "isError": True
             }
+
+
+async def gather_manage_clusterprofiles(
+    ctx: Context,
+    action: str,
+    uid: Optional[str] = None,
+    project_id: Optional[str] = None,
+    api_key: Optional[str] = None
+) -> MCPResult:
+    """Manage cluster profiles in Palette.
+    
+    Args:
+        action: The operation to perform. Must be one of:
+            - "list": Get all cluster profiles in the project
+            - "get": Get detailed information about a specific cluster profile (requires uid)
+            - "delete": Delete a cluster profile (requires uid, requires ALLOW_DANGEROUS_ACTIONS=1)
+        uid: The UID of the cluster profile. Required for "get" and "delete" actions.
+        project_id: Optional project ID override.
+        api_key: Optional API key override.
+    """
+    session_ctx = get_session_context(ctx)
+    
+    with create_span("gather_manage_clusterprofiles") as span:
+        safe_set_tool(
+            span,
+            name="gather_manage_clusterprofiles",
+            description="Manage cluster profiles in Palette - list, get details, or delete",
+            parameters={
+                "action": {"type": "string", "description": "The operation: 'list', 'get', or 'delete'"},
+                "uid": {"type": "string", "description": "The UID of the cluster profile (required for get/delete)"},
+                "project_id": {"type": "string", "description": "The ID of the project (optional)"},
+                "api_key": {"type": "string", "description": "The API key (optional)"}
+            }
+        )
+        
+        safe_set_input(span, {
+            "action": action,
+            "uid": uid
+        })
+        
+        # Validate action - only get, list, delete are allowed.
+        if action not in ["list", "get", "delete"]:
+            error_msg = f"Error: Invalid action '{action}'. Only 'get', 'list', and 'delete' are allowed actions."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for get.
+        if action == "get" and not uid:
+            error_msg = "Error: The 'get' action requires a cluster profile UID. Use action='list' first to retrieve all cluster profiles and identify the UID of the profile you are interested in."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for delete.
+        if action == "delete" and not uid:
+            error_msg = "Error: The 'delete' action requires a cluster profile UID. Use action='list' to retrieve all cluster profiles and identify the UID of the profile you want to delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Check dangerous action permission for delete.
+        if action == "delete" and not session_ctx.is_dangerous_actions_allowed():
+            error_msg = "Error: The 'delete' action is not allowed. The ALLOW_DANGEROUS_ACTIONS environment variable must be set to '1' to enable dangerous operations like delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Route to appropriate helper.
+        if action == "list":
+            result = await _list_cluster_profiles(ctx, project_id, api_key)
+        elif action == "get":
+            result = await _get_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        elif action == "delete":
+            result = await _delete_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        
+        if not result.get("isError", False):
+            safe_set_span_status(span, "OK")
+        
+        return result
 
 async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None, force_delete: bool = False) -> MCPResult:
     """Deletes a specific cluster using its UID. Specifying force_delete=True will force the deletion of the cluster. Keep in mind that force delete can only work if the cluster is in the delete state. A delete request must be initiated without the force delete flag prior to using force delete.
@@ -514,6 +790,98 @@ async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optiona
                 "isError": True
             }
 
+
+async def gather_manage_clusterprofiles(
+    ctx: Context,
+    action: str,
+    uid: Optional[str] = None,
+    project_id: Optional[str] = None,
+    api_key: Optional[str] = None
+) -> MCPResult:
+    """Manage cluster profiles in Palette Use this to list, get details, or delete cluster profiles. Currently create is not supported.
+    
+    Args:
+        action: The operation to perform. Must be one of:
+            - "list": Get all cluster profiles in the project
+            - "get": Get detailed information about a specific cluster profile (requires uid)
+            - "delete": Delete a cluster profile (requires uid, requires the human user to set the environment variable ALLOW_DANGEROUS_ACTIONS=1 when starting the Palette MCP server)
+        uid: The UID of the cluster profile. Required for "get" and "delete" actions.
+        project_id: Optional project ID override.
+        api_key: Optional API key override.
+    """
+    session_ctx = get_session_context(ctx)
+    
+    with create_span("gather_manage_clusterprofiles") as span:
+        safe_set_tool(
+            span,
+            name="gather_manage_clusterprofiles",
+            description="Manage cluster profiles in Palette - list, get details, or delete",
+            parameters={
+                "action": {"type": "string", "description": "The operation: 'list', 'get', or 'delete'"},
+                "uid": {"type": "string", "description": "The UID of the cluster profile (required for get/delete)"},
+                "project_id": {"type": "string", "description": "The ID of the project (optional)"},
+                "api_key": {"type": "string", "description": "The API key (optional)"}
+            }
+        )
+        
+        safe_set_input(span, {
+            "action": action,
+            "uid": uid
+        })
+        
+        # Validate action - only get, list, delete are allowed.
+        if action not in ["list", "get", "delete"]:
+            error_msg = f"Error: Invalid action '{action}'. Only 'get', 'list', and 'delete' are allowed actions."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for get.
+        if action == "get" and not uid:
+            error_msg = "Error: The 'get' action requires a cluster profile UID. Use action='list' first to retrieve all cluster profiles and identify the UID of the profile you are interested in."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for delete.
+        if action == "delete" and not uid:
+            error_msg = "Error: The 'delete' action requires a cluster profile UID. Use action='list' to retrieve all cluster profiles and identify the UID of the profile you want to delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Check dangerous action permission for delete.
+        if action == "delete" and not session_ctx.is_dangerous_actions_allowed():
+            error_msg = "Error: The 'delete' action is not allowed. The ALLOW_DANGEROUS_ACTIONS environment variable must be set to '1' to enable dangerous operations like delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Route to appropriate helper.
+        if action == "list":
+            result = await _list_cluster_profiles(ctx, project_id, api_key)
+        elif action == "get":
+            result = await _get_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        elif action == "delete":
+            result = await _delete_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        
+        if not result.get("isError", False):
+            safe_set_span_status(span, "OK")
+        
+        return result
+
 async def getAdminKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Gets the admin kubeconfig file for a specific cluster. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
       the context will not be used. Instead, the project_id and api_key will be used directly.
@@ -611,6 +979,98 @@ async def getAdminKubeconfig(ctx: Context, cluster_uid: str, project_id: Optiona
                 "isError": True
             }
 
+
+async def gather_manage_clusterprofiles(
+    ctx: Context,
+    action: str,
+    uid: Optional[str] = None,
+    project_id: Optional[str] = None,
+    api_key: Optional[str] = None
+) -> MCPResult:
+    """Manage cluster profiles in Palette.
+    
+    Args:
+        action: The operation to perform. Must be one of:
+            - "list": Get all cluster profiles in the project
+            - "get": Get detailed information about a specific cluster profile (requires uid)
+            - "delete": Delete a cluster profile (requires uid, requires ALLOW_DANGEROUS_ACTIONS=1)
+        uid: The UID of the cluster profile. Required for "get" and "delete" actions.
+        project_id: Optional project ID override.
+        api_key: Optional API key override.
+    """
+    session_ctx = get_session_context(ctx)
+    
+    with create_span("gather_manage_clusterprofiles") as span:
+        safe_set_tool(
+            span,
+            name="gather_manage_clusterprofiles",
+            description="Manage cluster profiles in Palette - list, get details, or delete",
+            parameters={
+                "action": {"type": "string", "description": "The operation: 'list', 'get', or 'delete'"},
+                "uid": {"type": "string", "description": "The UID of the cluster profile (required for get/delete)"},
+                "project_id": {"type": "string", "description": "The ID of the project (optional)"},
+                "api_key": {"type": "string", "description": "The API key (optional)"}
+            }
+        )
+        
+        safe_set_input(span, {
+            "action": action,
+            "uid": uid
+        })
+        
+        # Validate action - only get, list, delete are allowed.
+        if action not in ["list", "get", "delete"]:
+            error_msg = f"Error: Invalid action '{action}'. Only 'get', 'list', and 'delete' are allowed actions."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for get.
+        if action == "get" and not uid:
+            error_msg = "Error: The 'get' action requires a cluster profile UID. Use action='list' first to retrieve all cluster profiles and identify the UID of the profile you are interested in."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for delete.
+        if action == "delete" and not uid:
+            error_msg = "Error: The 'delete' action requires a cluster profile UID. Use action='list' to retrieve all cluster profiles and identify the UID of the profile you want to delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Check dangerous action permission for delete.
+        if action == "delete" and not session_ctx.is_dangerous_actions_allowed():
+            error_msg = "Error: The 'delete' action is not allowed. The ALLOW_DANGEROUS_ACTIONS environment variable must be set to '1' to enable dangerous operations like delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Route to appropriate helper.
+        if action == "list":
+            result = await _list_cluster_profiles(ctx, project_id, api_key)
+        elif action == "get":
+            result = await _get_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        elif action == "delete":
+            result = await _delete_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        
+        if not result.get("isError", False):
+            safe_set_span_status(span, "OK")
+        
+        return result
+
 async def getKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
     """Gets the regular (non-admin) kubeconfig file for a specific cluster.  Preferably use getAdminKubeconfig instead.
        The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
@@ -698,6 +1158,98 @@ async def getKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str
                 "content": [{"type": "text", "text": error_message}],
                 "isError": True
             }
+
+
+async def gather_manage_clusterprofiles(
+    ctx: Context,
+    action: str,
+    uid: Optional[str] = None,
+    project_id: Optional[str] = None,
+    api_key: Optional[str] = None
+) -> MCPResult:
+    """Manage cluster profiles in Palette.
+    
+    Args:
+        action: The operation to perform. Must be one of:
+            - "list": Get all cluster profiles in the project
+            - "get": Get detailed information about a specific cluster profile (requires uid)
+            - "delete": Delete a cluster profile (requires uid, requires ALLOW_DANGEROUS_ACTIONS=1)
+        uid: The UID of the cluster profile. Required for "get" and "delete" actions.
+        project_id: Optional project ID override.
+        api_key: Optional API key override.
+    """
+    session_ctx = get_session_context(ctx)
+    
+    with create_span("gather_manage_clusterprofiles") as span:
+        safe_set_tool(
+            span,
+            name="gather_manage_clusterprofiles",
+            description="Manage cluster profiles in Palette - list, get details, or delete",
+            parameters={
+                "action": {"type": "string", "description": "The operation: 'list', 'get', or 'delete'"},
+                "uid": {"type": "string", "description": "The UID of the cluster profile (required for get/delete)"},
+                "project_id": {"type": "string", "description": "The ID of the project (optional)"},
+                "api_key": {"type": "string", "description": "The API key (optional)"}
+            }
+        )
+        
+        safe_set_input(span, {
+            "action": action,
+            "uid": uid
+        })
+        
+        # Validate action - only get, list, delete are allowed.
+        if action not in ["list", "get", "delete"]:
+            error_msg = f"Error: Invalid action '{action}'. Only 'get', 'list', and 'delete' are allowed actions."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for get.
+        if action == "get" and not uid:
+            error_msg = "Error: The 'get' action requires a cluster profile UID. Use action='list' first to retrieve all cluster profiles and identify the UID of the profile you are interested in."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for delete.
+        if action == "delete" and not uid:
+            error_msg = "Error: The 'delete' action requires a cluster profile UID. Use action='list' to retrieve all cluster profiles and identify the UID of the profile you want to delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Check dangerous action permission for delete.
+        if action == "delete" and not session_ctx.is_dangerous_actions_allowed():
+            error_msg = "Error: The 'delete' action is not allowed. The ALLOW_DANGEROUS_ACTIONS environment variable must be set to '1' to enable dangerous operations like delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Route to appropriate helper.
+        if action == "list":
+            result = await _list_cluster_profiles(ctx, project_id, api_key)
+        elif action == "get":
+            result = await _get_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        elif action == "delete":
+            result = await _delete_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        
+        if not result.get("isError", False):
+            safe_set_span_status(span, "OK")
+        
+        return result
 
 async def getPodsInCluster(ctx: Context, kubeconfig_path: Optional[str] = None) -> MCPResult:
     """Gets all the pods in a specific Kubernetes cluster.
@@ -885,111 +1437,106 @@ async def analyzeCluster(ctx: Context, kubeconfig_path: Optional[str] = None) ->
             }
   
   
-async def  getClusterProfiles(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-  """Gets all cluster profiles in a project. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
-  the context will not be used. Instead, the project_id and api_key will be used directly.
-  """
-  # Get our custom MCP session context
-  session_ctx = get_session_context(ctx)
-  
+async def _list_cluster_profiles(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
+    """Internal helper: Gets all cluster profiles in a project."""
+    # Get our custom MCP session context
+    session_ctx = get_session_context(ctx)
 
-  # Use values from context.config, with optional overrides
-  api_key = session_ctx.get_api_key(api_key)
-  project_id = session_ctx.get_project_id(project_id)
-  palette_host = session_ctx.get_host()
+    # Use values from context.config, with optional overrides
+    api_key = session_ctx.get_api_key(api_key)
+    project_id = session_ctx.get_project_id(project_id)
+    palette_host = session_ctx.get_host()
     
-  if not api_key:
-      return {
-          "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
-          "isError": True
-      }
-  
-  with create_span("getClusterProfiles") as span:
-      safe_set_tool(
-          span,
-          name="getClusterProfiles",
-          description="Queries Palette API for all cluster profiles in a project, returning profile metadata with pack values removed",
-          parameters={
-              "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
-              "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
-          }
-      )
-      
-      safe_set_input(span, mask_sensitive_data({
-          "api_key": api_key
-      }))
+    if not api_key:
+        return {
+            "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
+            "isError": True
+        }
+    
+    with create_span("_list_cluster_profiles") as span:
+        safe_set_tool(
+            span,
+            name="_list_cluster_profiles",
+            description="Queries Palette API for all cluster profiles in a project, returning profile metadata with pack values removed",
+            parameters={
+                "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
+                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
+            }
+        )
+        
+        safe_set_input(span, mask_sensitive_data({
+            "api_key": api_key
+        }))
 
-      try:
-          conn = http.client.HTTPSConnection(palette_host)
-          payload = ''
-          headers = {
-              'Accept': 'application/json',
-              'apiKey': api_key
-          }
-          
-          # Only add ProjectUid header if project_id is provided
-          if project_id:
-              headers['ProjectUid'] = project_id
+        try:
+            conn = http.client.HTTPSConnection(palette_host)
+            payload = ''
+            headers = {
+                'Accept': 'application/json',
+                'apiKey': api_key
+            }
+            
+            # Only add ProjectUid header if project_id is provided
+            if project_id:
+                headers['ProjectUid'] = project_id
 
-          all_profiles = []
-          continue_token = None
+            all_profiles = []
+            continue_token = None
 
-          while True:
-              if continue_token:
-                  headers['Continue'] = continue_token
+            while True:
+                if continue_token:
+                    headers['Continue'] = continue_token
 
-              conn.request("GET", "/v1/clusterprofiles/", payload, headers)
-              res = conn.getresponse()
-              data = res.read()
+                conn.request("GET", "/v1/clusterprofiles/", payload, headers)
+                res = conn.getresponse()
+                data = res.read()
 
-              if res.status >= 400:
-                  raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
+                if res.status >= 400:
+                    raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
 
-              json_data = json.loads(data.decode("utf-8"))
-              all_profiles.extend(json_data.get('items', []))
+                json_data = json.loads(data.decode("utf-8"))
+                all_profiles.extend(json_data.get('items', []))
 
-              continue_token = json_data.get('listmeta', {}).get('continue')
-              if not continue_token:
-                  break
+                continue_token = json_data.get('listmeta', {}).get('continue')
+                if not continue_token:
+                    break
 
-          # Clean up pack values from cluster profiles
-          for profile in all_profiles:
-              if 'spec' in profile:
-                  # Handle published packs
-                  if 'published' in profile['spec'] and 'packs' in profile['spec']['published']:
-                      for pack in profile['spec']['published']['packs']:
-                          if 'values' in pack:
-                              del pack['values']
-                  
-                  # Handle draft packs
-                  if 'draft' in profile['spec'] and 'packs' in profile['spec']['draft']:
-                      for pack in profile['spec']['draft']['packs']:
-                          if 'values' in pack:
-                              del pack['values']
+            # Clean up pack values from cluster profiles
+            for profile in all_profiles:
+                if 'spec' in profile:
+                    # Handle published packs
+                    if 'published' in profile['spec'] and 'packs' in profile['spec']['published']:
+                        for pack in profile['spec']['published']['packs']:
+                            if 'values' in pack:
+                                del pack['values']
+                    
+                    # Handle draft packs
+                    if 'draft' in profile['spec'] and 'packs' in profile['spec']['draft']:
+                        for pack in profile['spec']['draft']['packs']:
+                            if 'values' in pack:
+                                del pack['values']
 
-          result = {"clusterProfiles": {'items': all_profiles}}
-          safe_set_output(span, result)
-          safe_set_span_status(span, "OK")
-          
-          return {
-              "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
-              "isError": False
-          }
+            result = {"clusterProfiles": {'items': all_profiles}}
+            safe_set_output(span, result)
+            safe_set_span_status(span, "OK")
+            
+            return {
+                "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
+                "isError": False
+            }
 
-      except Exception as e:
-          error_message = f"Error during API call: {str(e)}"
-          safe_set_output(span, {"error": error_message})
-          safe_set_span_status(span, "ERROR", str(e))
-          
-          return {
-              "content": [{"type": "text", "text": error_message}],
-              "isError": True
-          }
+        except Exception as e:
+            error_message = f"Error during API call: {str(e)}"
+            safe_set_output(span, {"error": error_message})
+            safe_set_span_status(span, "ERROR", str(e))
+            
+            return {
+                "content": [{"type": "text", "text": error_message}],
+                "isError": True
+            }
 
-async def getClusterProfileByUID(ctx: Context, clusterprofile_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-    """Gets a specific cluster profile by its UID. Returns all data including pack values. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
-    the context will not be used. Instead, the project_id and api_key will be used directly.
-    """
+async def _get_cluster_profile_by_uid(ctx: Context, clusterprofile_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
+    """Internal helper: Gets a specific cluster profile by its UID. Returns all data including pack values."""
     # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
     
@@ -1004,10 +1551,10 @@ async def getClusterProfileByUID(ctx: Context, clusterprofile_uid: str, project_
             "isError": True
         }
     
-    with create_span("getClusterProfileByUID") as span:
+    with create_span("_get_cluster_profile_by_uid") as span:
         safe_set_tool(
             span,
-            name="getClusterProfileByUID",
+            name="_get_cluster_profile_by_uid",
             description="Queries Palette API for a specific cluster profile by UID, returning complete profile data including pack values",
             parameters={
                 "clusterprofile_uid": {"type": "string", "description": "The UID of the cluster profile to retrieve"},
@@ -1060,15 +1607,9 @@ async def getClusterProfileByUID(ctx: Context, clusterprofile_uid: str, project_
                 "isError": True
             }
 
-async def deleteClusterProfileByUID(ctx: Context, clusterprofile_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-    """Deletes a specific cluster profile using its UID. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
-    the context will not be used. Instead, the project_id and api_key will be used directly.
-    
-    Args:
-        clusterprofile_uid (str): The UID of the cluster profile to delete
-        project_id (str): The ID of the project to query (optional, omits the ProjectUid header if not provided)
-        api_key (str): The API key for the Palette API (optional, uses default if not provided)
-    """
+
+async def _delete_cluster_profile_by_uid(ctx: Context, clusterprofile_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
+    """Internal helper: Deletes a specific cluster profile using its UID."""
     # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
     
@@ -1083,10 +1624,10 @@ async def deleteClusterProfileByUID(ctx: Context, clusterprofile_uid: str, proje
             "isError": True
         }
     
-    with create_span("deleteClusterProfileByUID") as span:
+    with create_span("_delete_cluster_profile_by_uid") as span:
         safe_set_tool(
             span,
-            name="deleteClusterProfileByUID",
+            name="_delete_cluster_profile_by_uid",
             description="Deletes a specific cluster profile from Palette using its UID",
             parameters={
                 "clusterprofile_uid": {"type": "string", "description": "The UID of the cluster profile to delete"},
@@ -1156,3 +1697,95 @@ async def deleteClusterProfileByUID(ctx: Context, clusterprofile_uid: str, proje
                 "content": [{"type": "text", "text": error_message}],
                 "isError": True
             }
+
+
+async def gather_manage_clusterprofiles(
+    ctx: Context,
+    action: str,
+    uid: Optional[str] = None,
+    project_id: Optional[str] = None,
+    api_key: Optional[str] = None
+) -> MCPResult:
+    """Manage cluster profiles in Palette.
+    
+    Args:
+        action: The operation to perform. Must be one of:
+            - "list": Get all cluster profiles in the project
+            - "get": Get detailed information about a specific cluster profile (requires uid)
+            - "delete": Delete a cluster profile (requires uid, requires ALLOW_DANGEROUS_ACTIONS=1)
+        uid: The UID of the cluster profile. Required for "get" and "delete" actions.
+        project_id: Optional project ID override.
+        api_key: Optional API key override.
+    """
+    session_ctx = get_session_context(ctx)
+    
+    with create_span("gather_manage_clusterprofiles") as span:
+        safe_set_tool(
+            span,
+            name="gather_manage_clusterprofiles",
+            description="Manage cluster profiles in Palette - list, get details, or delete",
+            parameters={
+                "action": {"type": "string", "description": "The operation: 'list', 'get', or 'delete'"},
+                "uid": {"type": "string", "description": "The UID of the cluster profile (required for get/delete)"},
+                "project_id": {"type": "string", "description": "The ID of the project (optional)"},
+                "api_key": {"type": "string", "description": "The API key (optional)"}
+            }
+        )
+        
+        safe_set_input(span, {
+            "action": action,
+            "uid": uid
+        })
+        
+        # Validate action - only get, list, delete are allowed.
+        if action not in ["list", "get", "delete"]:
+            error_msg = f"Error: Invalid action '{action}'. Only 'get', 'list', and 'delete' are allowed actions."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for get.
+        if action == "get" and not uid:
+            error_msg = "Error: The 'get' action requires a cluster profile UID. Use action='list' first to retrieve all cluster profiles and identify the UID of the profile you are interested in."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for delete.
+        if action == "delete" and not uid:
+            error_msg = "Error: The 'delete' action requires a cluster profile UID. Use action='list' to retrieve all cluster profiles and identify the UID of the profile you want to delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Check dangerous action permission for delete.
+        if action == "delete" and not session_ctx.is_dangerous_actions_allowed():
+            error_msg = "Error: The 'delete' action is not allowed. The ALLOW_DANGEROUS_ACTIONS environment variable must be set to '1' to enable dangerous operations like delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Route to appropriate helper.
+        if action == "list":
+            result = await _list_cluster_profiles(ctx, project_id, api_key)
+        elif action == "get":
+            result = await _get_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        elif action == "delete":
+            result = await _delete_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        
+        if not result.get("isError", False):
+            safe_set_span_status(span, "OK")
+        
+        return result
