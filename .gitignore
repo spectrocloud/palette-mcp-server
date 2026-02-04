@@ -215,3 +215,5 @@ palette-apis.json
 test.py
 
 tmp/
+
+.playwright-mcp/
