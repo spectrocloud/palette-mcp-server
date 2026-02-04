@@ -520,7 +520,7 @@ async def _delete_cluster_by_uid(ctx: Context, cluster_uid: str, project_id: Opt
             }
 
 
-async def gather_manage_clusters(
+async def gather_or_delete_clusters(
     ctx: Context,
     action: str,
     uid: Optional[str] = None,
@@ -529,7 +529,7 @@ async def gather_manage_clusters(
     project_id: Optional[str] = None,
     api_key: Optional[str] = None
 ) -> MCPResult:
-    """Manage clusters in Palette.
+    """Gather information about clusters or delete a cluster in Palette.
     
     Args:
         action: The operation to perform. Must be one of:
@@ -544,11 +544,11 @@ async def gather_manage_clusters(
     """
     session_ctx = get_session_context(ctx)
     
-    with create_span("gather_manage_clusters") as span:
+    with create_span("gather_or_delete_clusters") as span:
         safe_set_tool(
             span,
-            name="gather_manage_clusters",
-            description="Manage clusters in Palette - list, get details, or delete",
+            name="gather_or_delete_clusters",
+            description="Gather information about clusters or delete a cluster in Palette",
             parameters={
                 "action": {"type": "string", "description": "The operation: 'list', 'get', or 'delete'"},
                 "uid": {"type": "string", "description": "The UID of the cluster (required for get/delete)"},
@@ -1025,14 +1025,14 @@ async def _delete_cluster_profile_by_uid(ctx: Context, clusterprofile_uid: str, 
             }
 
 
-async def gather_manage_clusterprofiles(
+async def gather_or_delete_clusterprofiles(
     ctx: Context,
     action: str,
     uid: Optional[str] = None,
     project_id: Optional[str] = None,
     api_key: Optional[str] = None
 ) -> MCPResult:
-    """Manage cluster profiles in Palette.
+    """Gatr information about cluster profiles in Palette or delete a cluster profile in Palette.
     
     Args:
         action: The operation to perform. Must be one of:
@@ -1045,11 +1045,11 @@ async def gather_manage_clusterprofiles(
     """
     session_ctx = get_session_context(ctx)
     
-    with create_span("gather_manage_clusterprofiles") as span:
+    with create_span("gather_or_delete_clusterprofiles") as span:
         safe_set_tool(
             span,
-            name="gather_manage_clusterprofiles",
-            description="Manage cluster profiles in Palette - list, get details, or delete",
+            name="gather_or_delete_clusterprofiles",
+            description="Gather information about cluster profiles or delete a cluster profile in Palette",
             parameters={
                 "action": {"type": "string", "description": "The operation: 'list', 'get', or 'delete'"},
                 "uid": {"type": "string", "description": "The UID of the cluster profile (required for get/delete)"},

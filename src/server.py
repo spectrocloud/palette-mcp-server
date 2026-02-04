@@ -9,7 +9,7 @@ from fastmcp.server.openapi import RouteMap, MCPType
 from fastmcp.utilities.logging import get_logger
 from context import MCPSessionContext
 from helpers import cleanup_temp_files, create_signal_handler
-from tools import gather_manage_clusters, gather_manage_clusterprofiles, getKubeconfig
+from tools import gather_or_delete_clusters, gather_or_delete_clusterprofiles, getKubeconfig
 from openapi import load_openapi_spec, generate_mcp_names
 
 # Use FastMCP's logging utility for server-side logging
@@ -71,18 +71,15 @@ if all_palette_apis:
 else:
     openapi_spec = None 
     mcp = FastMCP("Palette MCP Server", version=version)
-    # Safe tools (always loaded)
-    # Note: gather_manage_clusters and gather_manage_clusterprofiles handle dangerous actions internally
-    # by checking session_ctx.is_dangerous_actions_allowed() at runtime for delete operations.
+    # All tools - dangerous actions are handled internally at runtime via session_ctx.is_dangerous_actions_allowed().
     SAFE_TOOLS = [
-        gather_manage_clusters,
-        gather_manage_clusterprofiles,
+        gather_or_delete_clusters,
+        gather_or_delete_clusterprofiles,
         getKubeconfig,
     ]
 
-    # Dangerous tools (only loaded if dangerous actions are allowed)
-    # Note: deleteClusterByUID and deleteClusterProfileByUID are now handled inside
-    # gather_manage_clusters and gather_manage_clusterprofiles respectively.
+    # Only functions that are considered dangerous by design are loaded here. If an action contains a dangerous method it's not included here.
+    # Dangerous methods are handled internally at runtime via session_ctx.is_dangerous_actions_allowed().
     DANGEROUS_TOOLS = []
 
     TOOLS = sorted(SAFE_TOOLS + (DANGEROUS_TOOLS if allow_dangerous_actions else []), key=operator.attrgetter('__name__'))
