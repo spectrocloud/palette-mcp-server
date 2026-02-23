@@ -693,8 +693,13 @@ async def getKubeconfig(
             res = conn.getresponse()
             data = res.read()
 
-            # If admin kubeconfig is not available, try regular kubeconfig with frp=true
+            # Track whether the fetched config is actually an admin config.
+            # If the admin endpoint returns 404, fall back to the regular kubeconfig
+            # and mark actual_admin_config as False so downstream code reflects the
+            # real config type.
+            actual_admin_config = admin_config
             if admin_config and res.status == 404:
+                actual_admin_config = False
                 url = f"/v1/spectroclusters/{cluster_uid}/assets/kubeconfig?frp=true"
                 conn.request("GET", url, {}, headers)
                 res = conn.getresponse()
@@ -714,16 +719,16 @@ async def getKubeconfig(
             
             # Write kubeconfig to temp directory with cluster UID
             try:
-                kubeconfig_path = write_kubeconfig_to_temp(cluster_uid, kubeconfig_content, is_admin=admin_config)
+                kubeconfig_path = write_kubeconfig_to_temp(cluster_uid, kubeconfig_content, is_admin=actual_admin_config)
                 # Set the kubeconfig path in context
                 session_ctx.kubeconfig.set_path(kubeconfig_path)
             except Exception as e:
                 print(f"Warning: Failed to write kubeconfig to temp file: {str(e)}")
                 kubeconfig_path = None
                 
-            safe_set_output(span, {"status": "Kubeconfig retrieved successfully", "admin_config": admin_config})
+            safe_set_output(span, {"status": "Kubeconfig retrieved successfully", "admin_config": actual_admin_config})
             
-            config_type = "Admin kubeconfig" if admin_config else "Kubeconfig"
+            config_type = "Admin kubeconfig" if actual_admin_config else "Kubeconfig"
             return {
                 "content": [
                     {"type": "text", "text": kubeconfig_content},
