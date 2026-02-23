@@ -619,6 +619,8 @@ async def gather_or_delete_clusters(
         
         if not result.get("isError", False):
             safe_set_span_status(span, "OK")
+        else:
+            safe_set_span_status(span, "ERROR")
         
         return result
 
@@ -722,8 +724,8 @@ async def getKubeconfig(
                 kubeconfig_path = write_kubeconfig_to_temp(cluster_uid, kubeconfig_content, is_admin=actual_admin_config)
                 # Set the kubeconfig path in context
                 session_ctx.kubeconfig.set_path(kubeconfig_path)
-            except Exception as e:
-                print(f"Warning: Failed to write kubeconfig to temp file: {str(e)}")
+            except OSError as e:
+                print(f"Warning: Failed to write kubeconfig to temp file: {e!s}")
                 kubeconfig_path = None
                 
             safe_set_output(span, {"status": "Kubeconfig retrieved successfully", "admin_config": actual_admin_config})
@@ -1118,5 +1120,7 @@ async def gather_or_delete_clusterprofiles(
         
         if not result.get("isError", False):
             safe_set_span_status(span, "OK")
+        else:
+            safe_set_span_status(span, "ERROR")
         
         return result
