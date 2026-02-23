@@ -138,15 +138,15 @@ async def _list_clusters(ctx: Context, project_id: Optional[str] = None, api_key
                 res = conn.getresponse()
                 data = res.read()
 
-                if res.status >= 400:
-                    raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
-
                 if res.status == 422:
                     error_data = json.loads(data.decode('utf-8'))
                     raise Exception(f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}")
                 
                 if res.status == 429:
                     raise Exception(f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}")
+                  
+                if res.status >= 400:
+                    raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
                 
                 json_data = json.loads(data.decode("utf-8"))
                 items = json_data.get('items') or []
@@ -1032,7 +1032,7 @@ async def gather_or_delete_clusterprofiles(
     project_id: Optional[str] = None,
     api_key: Optional[str] = None
 ) -> MCPResult:
-    """Gatr information about cluster profiles in Palette or delete a cluster profile in Palette.
+    """Gather information about cluster profiles in Palette or delete a cluster profile in Palette.
     
     Args:
         action: The operation to perform. Must be one of:
