@@ -15,19 +15,13 @@ The Palette MCP is a local-first MCP server. The MCP server is hosted in a conta
 
 ### Curated Tools Mode
 
-The Palette MCP server provides the following tools. Checkout the [Usage](#usage) section to learn more about how to use the tools. Some tools require explicit enablement before they can be used. Refer to the [Dangerous Actions](#dangerous-actions) section for more information.
+The Palette MCP server provides several tools for interacting with Palette. Several of the function calls expect an action parameter to be provided. The action parameter is used to determine the action to perform. For example, the `gather_or_delete_clusters` tool expects an action parameter of `list`, `get`, or `delete`. If an action contains a dangerous method, the `ALLOW_DANGEROUS_ACTIONS` environment variable must be set to `1` to enable the dangerous method. Otherwise, the dangerous method will be rejected. Check out the [Usage](#usage) section to learn more about how to use the tools. Some tools require explicit enablement before they can be used. Refer to the [Dangerous Actions](#dangerous-actions) section for more information.
 
-| Tool                        | Description                            | Dangerous Action |
-| --------------------------- | -------------------------------------- | ---------------- |
-| `getClusters`               | Get a list of clusters.                | No               |
-| `getActiveClusters`         | Get a list of active clusters.         | No               |
-| `getClusterDetailsByUID`    | Get a cluster by UID.                  | No               |
-| `getClusterProfileByUID`    | Get a specific cluster profile by UID. | No               |
-| `getClusterProfiles`        | Get a list of all cluster profiles.    | No               |
-| `deleteClusterByUID`        | Delete a cluster by UID.               | Yes              |
-| `deleteClusterProfileByUID` | Delete a cluster profile by UID.       | Yes              |
-| `getAdminKubeconfig`        | Get an Admin kubeconfig for cluster.   | No               |
-| `getKubeconfig`             | Get a kubeconfig for the cluster.      | No               |
+| Tool                               | Description                                                                       | Dangerous Method Included? | Dangerous Method? |
+| ---------------------------------- | --------------------------------------------------------------------------------- | -------------------------- | ----------------- |
+| `gather_or_delete_clusters`        | Gather information about clusters or delete a cluster in Palette.                 | Yes                        | Delete            |
+| `gather_or_delete_clusterprofiles` | Gather information about cluster profiles or delete a cluster profile in Palette. | Yes                        | Delete            |
+| `getKubeconfig`                    | Download the kubeconfig or admin kubeconfig for a cluster.                        | No                         | None              |
 
 The list above will continue to grow as we add more tools to the Palette MCP server.
 

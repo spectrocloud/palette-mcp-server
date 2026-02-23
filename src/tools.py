@@ -83,14 +83,8 @@ def safe_set_span_status(span, status_code: str, description: str = None):
         pass
 
 
-"""
-  This tool queries the Palette API to find all clusters in a given project, regardless of state. Cluster could be in a running, stopped, unhealthy, unknown, or deleted state.
-  The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
-  the context will not be used. Instead, the project_id and api_key will be used directly.
-  It returns the cluster metadata with the values.yaml removed from the return payload.
-"""
-async def getClusters(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-    """Queries the Palette API to find all clusters in a given project."""
+async def _list_clusters(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
+    """Internal helper: Queries the Palette API to find all clusters in a given project, regardless of state."""
     # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
     
@@ -105,10 +99,10 @@ async def getClusters(ctx: Context, project_id: Optional[str] = None, api_key: O
             "isError": True
         }
     
-    with create_span("getClusters") as span:
+    with create_span("_list_clusters") as span:
         safe_set_tool(
             span,
-            name="getClusters",
+            name="_list_clusters",
             description="Queries Palette API for all clusters in a project, returning cluster metadata with values.yaml removed",
             parameters={
                 "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
@@ -144,9 +138,16 @@ async def getClusters(ctx: Context, project_id: Optional[str] = None, api_key: O
                 res = conn.getresponse()
                 data = res.read()
 
+                if res.status == 422:
+                    error_data = json.loads(data.decode('utf-8'))
+                    raise Exception(f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}")
+                
+                if res.status == 429:
+                    raise Exception(f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}")
+                  
                 if res.status >= 400:
                     raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
-
+                
                 json_data = json.loads(data.decode("utf-8"))
                 items = json_data.get('items') or []
                 all_clusters.extend(items)
@@ -185,17 +186,9 @@ async def getClusters(ctx: Context, project_id: Optional[str] = None, api_key: O
                 "isError": True
             }
 
-async def getActiveClusters(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-    """Queries the Palette API to find all active clusters in a given project. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
-  the context will not be used. Instead, the project_id and api_key will be used directly.
-    
-    Args:
-        api_key (str): The API key for the Palette API. Optional, uses the API key from the context if not provided.
-        project_id (str): The ID of the project to query. Optional, uses the project ID from the context if not provided.
-        
-    Returns:
-        MCPResult: Result object containing active cluster metadata or error information
-    """
+
+async def _list_active_clusters(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
+    """Internal helper: Queries the Palette API to find all active (running) clusters in a given project."""
     # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
     
@@ -209,10 +202,10 @@ async def getActiveClusters(ctx: Context, project_id: Optional[str] = None, api_
             "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
             "isError": True
         }
-    with create_span("getActiveClusters") as span:
+    with create_span("_list_active_clusters") as span:
         safe_set_tool(
             span,
-            name="getActiveClusters",
+            name="_list_active_clusters",
             description="Queries Palette API for active clusters in a project, returning cluster metadata",
             parameters={
                 "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
@@ -310,6 +303,13 @@ async def getActiveClusters(ctx: Context, project_id: Optional[str] = None, api_
                 res = conn.getresponse()
                 data = res.read()
 
+                if res.status == 422:
+                    error_data = json.loads(data.decode('utf-8'))
+                    raise Exception(f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}")
+
+                if res.status == 429:
+                    raise Exception(f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}")
+
                 if res.status >= 400:
                     raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
 
@@ -339,10 +339,9 @@ async def getActiveClusters(ctx: Context, project_id: Optional[str] = None, api_
                 "isError": True
             }
 
-async def getClusterDetailsByUID(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-    """Queries the Palette API to find detailed information about a specific cluster. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
-  the context will not be used. Instead, the project_id and api_key will be used directly.
-    """
+
+async def _get_cluster_by_uid(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
+    """Internal helper: Queries the Palette API to find detailed information about a specific cluster."""
     # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
     
@@ -357,10 +356,10 @@ async def getClusterDetailsByUID(ctx: Context, cluster_uid: str, project_id: Opt
             "isError": True
         }
     
-    with create_span("getClusterDetailsByUID") as span:
+    with create_span("_get_cluster_by_uid") as span:
         safe_set_tool(
             span,
-            name="getClusterDetailsByUID",
+            name="_get_cluster_by_uid",
             description="Queries Palette API for detailed information about a specific cluster",
             parameters={
                 "cluster_uid": {"type": "string", "description": "The UID of the cluster to query"},
@@ -391,6 +390,13 @@ async def getClusterDetailsByUID(ctx: Context, cluster_uid: str, project_id: Opt
             res = conn.getresponse()
             data = res.read()
 
+            if res.status == 422:
+                error_data = json.loads(data.decode('utf-8'))
+                raise Exception(f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}")
+
+            if res.status == 429:
+                raise Exception(f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}")
+
             if res.status >= 400:
                 raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
 
@@ -412,17 +418,9 @@ async def getClusterDetailsByUID(ctx: Context, cluster_uid: str, project_id: Opt
                 "isError": True
             }
 
-async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None, force_delete: bool = False) -> MCPResult:
-    """Deletes a specific cluster using its UID. Specifying force_delete=True will force the deletion of the cluster. Keep in mind that force delete can only work if the cluster is in the delete state. A delete request must be initiated without the force delete flag prior to using force delete.
-       The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
-       the context will not be used. Instead, the project_id and api_key will be used directly.
-    
-    Args:
-        cluster_uid (str): The UID of the cluster to delete
-        project_id (str): The ID of the project to query (optional, omits the ProjectUid header if not provided)
-        api_key (str): The API key for the Palette API (optional, uses default if not provided)
-        force_delete (bool): Whether to force delete the cluster (optional, defaults to false)
-    """
+
+async def _delete_cluster_by_uid(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None, force_delete: bool = False) -> MCPResult:
+    """Internal helper: Deletes a specific cluster using its UID."""
     # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
     
@@ -437,10 +435,10 @@ async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optiona
             "isError": True
         }
     
-    with create_span("deleteClusterByUID") as span:
+    with create_span("_delete_cluster_by_uid") as span:
         safe_set_tool(
             span,
-            name="deleteClusterByUID",
+            name="_delete_cluster_by_uid",
             description="Deletes a specific cluster from Palette using its UID",
             parameters={
                 "cluster_uid": {"type": "string", "description": "The UID of the cluster to delete"},
@@ -474,6 +472,13 @@ async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optiona
             conn.request("DELETE", url, {}, headers)
             res = conn.getresponse()
             data = res.read()
+
+            if res.status == 422:
+                error_data = json.loads(data.decode('utf-8'))
+                raise Exception(f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}")
+
+            if res.status == 429:
+                raise Exception(f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}")
 
             if res.status >= 400:
                 raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
@@ -514,107 +519,126 @@ async def deleteClusterByUID(ctx: Context, cluster_uid: str, project_id: Optiona
                 "isError": True
             }
 
-async def getAdminKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-    """Gets the admin kubeconfig file for a specific cluster. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
-      the context will not be used. Instead, the project_id and api_key will be used directly.
+
+async def gather_or_delete_clusters(
+    ctx: Context,
+    action: str,
+    uid: Optional[str] = None,
+    active_only: bool = False,
+    force_delete: bool = False,
+    project_id: Optional[str] = None,
+    api_key: Optional[str] = None
+) -> MCPResult:
+    """Gather information about clusters or delete a cluster in Palette.
+    
+    Args:
+        action: The operation to perform. Must be one of:
+            - "list": Get all clusters in the project (use active_only=True to filter to active clusters only)
+            - "get": Get detailed information about a specific cluster (requires uid)
+            - "delete": Delete a cluster (requires uid, requires ALLOW_DANGEROUS_ACTIONS=1)
+        uid: The UID of the cluster. Required for "get" and "delete" actions.
+        active_only: If True and action="list", only return active clusters. Default is False.
+        force_delete: If True and action="delete", perform a force delete. Default is False.
+        project_id: Optional project ID override.
+        api_key: Optional API key override.
     """
-    # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
     
-    # Use values from context.config, with optional overrides
-    api_key = session_ctx.get_api_key(api_key)
-    project_id = session_ctx.get_project_id(project_id)
-    palette_host = session_ctx.get_host()
-    
-    if not api_key:
-        return {
-            "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
-            "isError": True
-        }
-    
-    with create_span("getAdminKubeconfig") as span:
+    with create_span("gather_or_delete_clusters") as span:
         safe_set_tool(
             span,
-            name="getAdminKubeconfig",
-            description="Gets the admin kubeconfig file for a specific cluster",
+            name="gather_or_delete_clusters",
+            description="Gather information about clusters or delete a cluster in Palette",
             parameters={
-                "cluster_uid": {"type": "string", "description": "The UID of the cluster to get the kubeconfig for"},
-                "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
-                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
+                "action": {"type": "string", "description": "The operation: 'list', 'get', or 'delete'"},
+                "uid": {"type": "string", "description": "The UID of the cluster (required for get/delete)"},
+                "active_only": {"type": "boolean", "description": "If True and action='list', only return active clusters"},
+                "force_delete": {"type": "boolean", "description": "If True and action='delete', perform a force delete"},
+                "project_id": {"type": "string", "description": "The ID of the project (optional)"},
+                "api_key": {"type": "string", "description": "The API key (optional)"}
             }
         )
         
-        safe_set_input(span, mask_sensitive_data({
-            "api_key": api_key, 
-            "project_id": project_id,
-            "cluster_uid": cluster_uid
-        }))
-
-        try:
-            conn = http.client.HTTPSConnection(palette_host)
-            headers = {
-                'Accept': 'application/octet-stream',
-                'apiKey': api_key
-            }
-            
-            # Only add ProjectUid header if project_id is provided
-            if project_id:
-                headers['ProjectUid'] = project_id
-                
-            url = f"/v1/spectroclusters/{cluster_uid}/assets/adminKubeconfig"
-            
-            conn.request("GET", url, {}, headers)
-            res = conn.getresponse()
-            data = res.read()
-
-            # If admin kubeconfig is not available, try regular kubeconfig with frp=true
-            if res.status == 404:
-                url = f"/v1/spectroclusters/{cluster_uid}/assets/kubeconfig?frp=true"
-                conn.request("GET", url, {}, headers)
-                res = conn.getresponse()
-                data = res.read()
-
-            if res.status >= 400:
-                raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
-              
-              
-            
-
-            result = {"admin_kubeconfig": data.decode("utf-8")}
-            
-            # Write kubeconfig to temp directory with cluster UID
-            try:
-                kubeconfig_path = write_kubeconfig_to_temp(cluster_uid, result["admin_kubeconfig"], is_admin=True)
-                # Set the kubeconfig path in context
-                session_ctx.kubeconfig.set_path(kubeconfig_path)
-            except Exception as e:
-                print(f"Warning: Failed to write kubeconfig to temp file: {str(e)}")
-                kubeconfig_path = None
-                
-            safe_set_output(span, {"status": "Kubeconfig retrieved successfully"})
-            
+        safe_set_input(span, {
+            "action": action,
+            "uid": uid,
+            "active_only": active_only,
+            "force_delete": force_delete
+        })
+        
+        # Validate action - only get, list, delete are allowed.
+        if action not in ["list", "get", "delete"]:
+            error_msg = f"Error: Invalid action '{action}'. Only 'get', 'list', and 'delete' are allowed actions."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
             return {
-                "content": [
-                    {"type": "text", "text": result["admin_kubeconfig"]},
-                    {"type": "text", "text": f"\nKubeconfig written to: {kubeconfig_path}" if kubeconfig_path else "\nWarning: Failed to write kubeconfig to temp file"}
-                ],
-                "isError": False
-            }
-
-        except Exception as e:
-            error_message = f"Error during API call: {str(e)}"
-            safe_set_output(span, {"error": error_message})
-            safe_set_span_status(span, "ERROR", str(e))
-            
-            return {
-                "content": [{"type": "text", "text": error_message}],
+                "content": [{"type": "text", "text": error_msg}],
                 "isError": True
             }
+        
+        # Validate uid requirement for get.
+        if action == "get" and not uid:
+            error_msg = "Error: The 'get' action requires a cluster UID. Use action='list' first to retrieve all clusters and identify the UID of the cluster you are interested in."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for delete.
+        if action == "delete" and not uid:
+            error_msg = "Error: The 'delete' action requires a cluster UID. Use action='list' to retrieve all clusters and identify the UID of the cluster you want to delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Check dangerous action permission for delete.
+        if action == "delete" and not session_ctx.is_dangerous_actions_allowed():
+            error_msg = "Error: The 'delete' action is not allowed. The ALLOW_DANGEROUS_ACTIONS environment variable must be set to '1' to enable dangerous operations like delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Route to appropriate helper.
+        if action == "list":
+            if active_only:
+                result = await _list_active_clusters(ctx, project_id, api_key)
+            else:
+                result = await _list_clusters(ctx, project_id, api_key)
+        elif action == "get":
+            result = await _get_cluster_by_uid(ctx, uid, project_id, api_key)
+        elif action == "delete":
+            result = await _delete_cluster_by_uid(ctx, uid, project_id, api_key, force_delete)
+        
+        if not result.get("isError", False):
+            safe_set_span_status(span, "OK")
+        else:
+            safe_set_span_status(span, "ERROR")
+        
+        return result
 
-async def getKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-    """Gets the regular (non-admin) kubeconfig file for a specific cluster.  Preferably use getAdminKubeconfig instead.
-       The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
-       the context will not be used. Instead, the project_id and api_key will be used directly.
+
+async def getKubeconfig(
+    ctx: Context,
+    cluster_uid: str,
+    admin_config: bool = False,
+    project_id: Optional[str] = None,
+    api_key: Optional[str] = None
+) -> MCPResult:
+    """Gets the kubeconfig file for a specific cluster.
+    
+    Args:
+        cluster_uid: The UID of the cluster to get the kubeconfig for.
+        admin_config: If True, retrieves the admin kubeconfig. If False (default), retrieves the regular kubeconfig.
+        project_id: Optional project ID override.
+        api_key: Optional API key override.
     """
     # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
@@ -634,18 +658,20 @@ async def getKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str
         safe_set_tool(
             span,
             name="getKubeconfig",
-            description="Gets the regular (non-admin) kubeconfig file for a specific cluster",
+            description="Gets the kubeconfig or admin kubeconfig file for a specific cluster. To use the admin kubeconfig, set admin_config to True.",
             parameters={
                 "cluster_uid": {"type": "string", "description": "The UID of the cluster to get the kubeconfig for"},
-                "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
-                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
+                "admin_config": {"type": "boolean", "description": "If True, retrieves the admin kubeconfig. Default is False."},
+                "project_id": {"type": "string", "description": "The ID of the project to query (optional)"},
+                "api_key": {"type": "string", "description": "The API key for the Palette API (optional)"}
             }
         )
         
         safe_set_input(span, mask_sensitive_data({
             "api_key": api_key, 
             "project_id": project_id,
-            "cluster_uid": cluster_uid
+            "cluster_uid": cluster_uid,
+            "admin_config": admin_config
         }))
 
         try:
@@ -658,33 +684,57 @@ async def getKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str
             # Only add ProjectUid header if project_id is provided
             if project_id:
                 headers['ProjectUid'] = project_id
-                
-            url = f"/v1/spectroclusters/{cluster_uid}/assets/kubeconfig"
+            
+            # Choose endpoint based on admin_config
+            if admin_config:
+                url = f"/v1/spectroclusters/{cluster_uid}/assets/adminKubeconfig"
+            else:
+                url = f"/v1/spectroclusters/{cluster_uid}/assets/kubeconfig"
             
             conn.request("GET", url, {}, headers)
             res = conn.getresponse()
             data = res.read()
 
+            # Track whether the fetched config is actually an admin config.
+            # If the admin endpoint returns 404, fall back to the regular kubeconfig
+            # and mark actual_admin_config as False so downstream code reflects the
+            # real config type.
+            actual_admin_config = admin_config
+            if admin_config and res.status == 404:
+                actual_admin_config = False
+                url = f"/v1/spectroclusters/{cluster_uid}/assets/kubeconfig?frp=true"
+                conn.request("GET", url, {}, headers)
+                res = conn.getresponse()
+                data = res.read()
+
+            if res.status == 422:
+                error_data = json.loads(data.decode('utf-8'))
+                raise Exception(f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}")
+
+            if res.status == 429:
+                raise Exception(f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}")
+
             if res.status >= 400:
                 raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
-              
-              
+
+            kubeconfig_content = data.decode("utf-8")
+            
             # Write kubeconfig to temp directory with cluster UID
             try:
-                kubeconfig_path = write_kubeconfig_to_temp(cluster_uid, data.decode("utf-8"))
+                kubeconfig_path = write_kubeconfig_to_temp(cluster_uid, kubeconfig_content, is_admin=actual_admin_config)
                 # Set the kubeconfig path in context
                 session_ctx.kubeconfig.set_path(kubeconfig_path)
-            except Exception as e:
-                print(f"Warning: Failed to write kubeconfig to temp file: {str(e)}")
+            except OSError as e:
+                print(f"Warning: Failed to write kubeconfig to temp file: {e!s}")
                 kubeconfig_path = None
-
-            result = {"kubeconfig": data.decode("utf-8")}
-            safe_set_output(span, {"status": "Kubeconfig retrieved successfully"})
+                
+            safe_set_output(span, {"status": "Kubeconfig retrieved successfully", "admin_config": actual_admin_config})
             
+            config_type = "Admin kubeconfig" if actual_admin_config else "Kubeconfig"
             return {
                 "content": [
-                    {"type": "text", "text": result["kubeconfig"]},
-                    {"type": "text", "text": f"\nKubeconfig written to: {kubeconfig_path}" if kubeconfig_path else "\nWarning: Failed to write kubeconfig to temp file"}
+                    {"type": "text", "text": kubeconfig_content},
+                    {"type": "text", "text": f"\n{config_type} written to: {kubeconfig_path}" if kubeconfig_path else f"\nWarning: Failed to write {config_type.lower()} to temp file"}
                 ],
                 "isError": False
             }
@@ -698,184 +748,104 @@ async def getKubeconfig(ctx: Context, cluster_uid: str, project_id: Optional[str
                 "content": [{"type": "text", "text": error_message}],
                 "isError": True
             }
-
-async def getPodsInCluster(ctx: Context, kubeconfig_path: Optional[str] = None) -> MCPResult:
-    """Gets all the pods in a specific Kubernetes cluster.
-    
-    Args:
-        kubeconfig_path (str): Path to the kubeconfig file (optional, uses path from context if not provided)
-        
-    Returns:
-        MCPResult: List of pods in the cluster with their status
-    """
+  
+async def _list_cluster_profiles(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
+    """Internal helper: Gets all cluster profiles in a project."""
     # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
+
+    # Use values from context.config, with optional overrides
+    api_key = session_ctx.get_api_key(api_key)
+    project_id = session_ctx.get_project_id(project_id)
+    palette_host = session_ctx.get_host()
     
-    # Use kubeconfig path from context if not provided
-    if not kubeconfig_path:
-        kubeconfig_path = session_ctx.kubeconfig.path
-    
-    if not kubeconfig_path:
+    if not api_key:
         return {
-            "content": [{"type": "text", "text": "Error: No kubeconfig_path provided and no kubeconfig path set in context"}],
+            "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
             "isError": True
         }
-    with create_span("getPodsInCluster") as span:
+    
+    with create_span("_list_cluster_profiles") as span:
         safe_set_tool(
             span,
-            name="getPodsInCluster",
-            description="Gets the pods in a specific Kubernetes cluster",
+            name="_list_cluster_profiles",
+            description="Queries Palette API for all cluster profiles in a project, returning profile metadata with pack values removed",
             parameters={
-                "kubeconfig_path": {"type": "string", "description": "Path to the kubeconfig file (optional, uses path from context if not provided)"}
+                "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
+                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
             }
         )
         
-        safe_set_input(span, {"kubeconfig_path": kubeconfig_path})
+        safe_set_input(span, mask_sensitive_data({
+            "api_key": api_key
+        }))
 
         try:
-            # First try using Python client
-            try:
-                # Load the kubeconfig from the file
-                config.load_kube_config(config_file=kubeconfig_path)
-                
-                # Get API client
-                v1_client = client.CoreV1Api()
-                
-                # Test connection by getting API resources
-                api_resources = v1_client.get_api_resources()
-                if not api_resources:
-                    raise Exception("Failed to connect to cluster")
-                
-                # Get pods
-                pods = v1_client.list_pod_for_all_namespaces(watch=False)
-                
-                # Extract names, namespaces, and statuses
-                pod_info = [
-                    {
-                        "name": pod.metadata.name,
-                        "namespace": pod.metadata.namespace,
-                        "status": pod.status.phase
-                    }
-                    for pod in pods.items
-                ]
-                
-                jsonPods = json.dumps(pod_info, indent=2, cls=DateTimeEncoder)
-                safe_set_output(span, {"pods": jsonPods})
-                
-                return {
-                    "content": [{"type": "text", "text": jsonPods}],
-                    "isError": False
-                }
+            conn = http.client.HTTPSConnection(palette_host)
+            payload = ''
+            headers = {
+                'Accept': 'application/json',
+                'apiKey': api_key
+            }
             
-            except Exception as e:
-                # If Python client fails, try kubectl
-                import subprocess
-                cmd = ["kubectl", "--kubeconfig", kubeconfig_path, "get", "pods", "--all-namespaces", "-o", "json"]
-                result = subprocess.run(cmd, capture_output=True, text=True)
-                
-                if result.returncode != 0:
-                    raise Exception(f"Both Python client and kubectl failed. kubectl error: {result.stderr}")
-                
-                pods_json = json.loads(result.stdout)
-                pod_info = [
-                    {
-                        "name": pod["metadata"]["name"],
-                        "namespace": pod["metadata"]["namespace"],
-                        "status": pod["status"]["phase"]
-                    }
-                    for pod in pods_json["items"]
-                ]
-                
-                jsonPods = json.dumps(pod_info, indent=2)
-                safe_set_output(span, {"pods": jsonPods})
-                
-                return {
-                    "content": [{"type": "text", "text": jsonPods}],
-                    "isError": False
-                }
-                
-        except Exception as e:
-            error_message = f"Error getting pods: {str(e)}"
-            safe_set_output(span, {"error": error_message})
-            safe_set_span_status(span, "ERROR", str(e))
+            # Only add ProjectUid header if project_id is provided
+            if project_id:
+                headers['ProjectUid'] = project_id
+
+            all_profiles = []
+            continue_token = None
+
+            while True:
+                if continue_token:
+                    headers['Continue'] = continue_token
+
+                conn.request("GET", "/v1/clusterprofiles/", payload, headers)
+                res = conn.getresponse()
+                data = res.read()
+
+                if res.status == 422:
+                    error_data = json.loads(data.decode('utf-8'))
+                    raise Exception(f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}")
+
+                if res.status == 429:
+                    raise Exception(f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}")
+
+                if res.status >= 400:
+                    raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
+
+                json_data = json.loads(data.decode("utf-8"))
+                all_profiles.extend(json_data.get('items', []))
+
+                continue_token = json_data.get('listmeta', {}).get('continue')
+                if not continue_token:
+                    break
+
+            # Clean up pack values from cluster profiles
+            for profile in all_profiles:
+                if 'spec' in profile:
+                    # Handle published packs
+                    if 'published' in profile['spec'] and 'packs' in profile['spec']['published']:
+                        for pack in profile['spec']['published']['packs']:
+                            if 'values' in pack:
+                                del pack['values']
+                    
+                    # Handle draft packs
+                    if 'draft' in profile['spec'] and 'packs' in profile['spec']['draft']:
+                        for pack in profile['spec']['draft']['packs']:
+                            if 'values' in pack:
+                                del pack['values']
+
+            result = {"clusterProfiles": {'items': all_profiles}}
+            safe_set_output(span, result)
+            safe_set_span_status(span, "OK")
             
             return {
-                "content": [{"type": "text", "text": error_message}],
-                "isError": True
-            }
-
-async def analyzeCluster(ctx: Context, kubeconfig_path: Optional[str] = None) -> MCPResult:
-    """Analyzes a Kubernetes cluster using k8sgpt The output contains the explaination of issues in the cluster. You can use the  output to help formualte a message to the user that better helps them understand the issues in the cluster.
-    
-    Args:
-        kubeconfig_path (str): Path to the kubeconfig file (optional, uses path from context if not provided)
-        
-    Returns:
-        MCPResult: Analysis results from k8sgpt
-    """
-    # Get our custom MCP session context
-    session_ctx = get_session_context(ctx)
-    
-    # Use kubeconfig path from context if not provided
-    if not kubeconfig_path:
-        kubeconfig_path = session_ctx.kubeconfig.path
-    
-    if not kubeconfig_path:
-        return {
-            "content": [{"type": "text", "text": "Error: No kubeconfig_path provided and no kubeconfig path set in context"}],
-            "isError": True
-        }
-    with create_span("analyzeCluster") as span:
-        safe_set_tool(
-            span,
-            name="analyzeCluster",
-            description="Analyzes a Kubernetes cluster using k8sgpt analyze --explain",
-            parameters={
-                "kubeconfig_path": {"type": "string", "description": "Path to the kubeconfig file (optional, uses path from context if not provided)"}
-            }
-        )
-        
-        safe_set_input(span, {
-            "kubeconfig_path": kubeconfig_path
-        })
-
-        try:
-            # Run k8sgpt analyze with the provided kubeconfig
-            import subprocess, os
-            
-            # First authenticate k8sgpt with OpenAI
-            if "K8SGPT_OPENAI_API_KEY" in os.environ:
-                print("Authenticating k8sgpt with OpenAI")
-                auth_cmd = ["k8sgpt", "auth", "add", "--backend", "openai", "--model", "gpt-4", "--password", os.environ["K8SGPT_OPENAI_API_KEY"]]
-                _ = subprocess.run(auth_cmd, capture_output=True, text=True, env=os.environ)    
-            else:
-                raise Exception("K8SGPT_OPENAI_API_KEY environment variable not set")
-            print("Authenticated k8sgpt with OpenAI")
-            # Run the analysis
-            cmd = ["k8sgpt", "analyze", "--explain", "--kubeconfig", kubeconfig_path]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True, env=os.environ)
-            
-            if result.returncode != 0:
-                error_details = f"Exit code: {result.returncode}\nStderr: {result.stderr}\nStdout: {result.stdout}"
-                safe_set_output(span, {
-                    "error": "k8sgpt analyze failed",
-                    "exit_code": result.returncode,
-                    "stderr": result.stderr,
-                    "stdout": result.stdout
-                })
-                raise Exception(f"k8sgpt analyze failed:\n{error_details}")
-
-            analysis_output = result.stdout
-            safe_set_output(span, {"analysis": analysis_output})
-            
-            return {
-                "content": [{"type": "text", "text": analysis_output}],
+                "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
                 "isError": False
             }
 
         except Exception as e:
-            error_message = f"Error analyzing cluster: {str(e)}"
+            error_message = f"Error during API call: {str(e)}"
             safe_set_output(span, {"error": error_message})
             safe_set_span_status(span, "ERROR", str(e))
             
@@ -883,113 +853,9 @@ async def analyzeCluster(ctx: Context, kubeconfig_path: Optional[str] = None) ->
                 "content": [{"type": "text", "text": error_message}],
                 "isError": True
             }
-  
-  
-async def  getClusterProfiles(ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-  """Gets all cluster profiles in a project. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
-  the context will not be used. Instead, the project_id and api_key will be used directly.
-  """
-  # Get our custom MCP session context
-  session_ctx = get_session_context(ctx)
-  
 
-  # Use values from context.config, with optional overrides
-  api_key = session_ctx.get_api_key(api_key)
-  project_id = session_ctx.get_project_id(project_id)
-  palette_host = session_ctx.get_host()
-    
-  if not api_key:
-      return {
-          "content": [{"type": "text", "text": "Error: No api_key provided and no default API key configured"}],
-          "isError": True
-      }
-  
-  with create_span("getClusterProfiles") as span:
-      safe_set_tool(
-          span,
-          name="getClusterProfiles",
-          description="Queries Palette API for all cluster profiles in a project, returning profile metadata with pack values removed",
-          parameters={
-              "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
-              "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"}
-          }
-      )
-      
-      safe_set_input(span, mask_sensitive_data({
-          "api_key": api_key
-      }))
-
-      try:
-          conn = http.client.HTTPSConnection(palette_host)
-          payload = ''
-          headers = {
-              'Accept': 'application/json',
-              'apiKey': api_key
-          }
-          
-          # Only add ProjectUid header if project_id is provided
-          if project_id:
-              headers['ProjectUid'] = project_id
-
-          all_profiles = []
-          continue_token = None
-
-          while True:
-              if continue_token:
-                  headers['Continue'] = continue_token
-
-              conn.request("GET", "/v1/clusterprofiles/", payload, headers)
-              res = conn.getresponse()
-              data = res.read()
-
-              if res.status >= 400:
-                  raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
-
-              json_data = json.loads(data.decode("utf-8"))
-              all_profiles.extend(json_data.get('items', []))
-
-              continue_token = json_data.get('listmeta', {}).get('continue')
-              if not continue_token:
-                  break
-
-          # Clean up pack values from cluster profiles
-          for profile in all_profiles:
-              if 'spec' in profile:
-                  # Handle published packs
-                  if 'published' in profile['spec'] and 'packs' in profile['spec']['published']:
-                      for pack in profile['spec']['published']['packs']:
-                          if 'values' in pack:
-                              del pack['values']
-                  
-                  # Handle draft packs
-                  if 'draft' in profile['spec'] and 'packs' in profile['spec']['draft']:
-                      for pack in profile['spec']['draft']['packs']:
-                          if 'values' in pack:
-                              del pack['values']
-
-          result = {"clusterProfiles": {'items': all_profiles}}
-          safe_set_output(span, result)
-          safe_set_span_status(span, "OK")
-          
-          return {
-              "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
-              "isError": False
-          }
-
-      except Exception as e:
-          error_message = f"Error during API call: {str(e)}"
-          safe_set_output(span, {"error": error_message})
-          safe_set_span_status(span, "ERROR", str(e))
-          
-          return {
-              "content": [{"type": "text", "text": error_message}],
-              "isError": True
-          }
-
-async def getClusterProfileByUID(ctx: Context, clusterprofile_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-    """Gets a specific cluster profile by its UID. Returns all data including pack values. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
-    the context will not be used. Instead, the project_id and api_key will be used directly.
-    """
+async def _get_cluster_profile_by_uid(ctx: Context, clusterprofile_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
+    """Internal helper: Gets a specific cluster profile by its UID. Returns all data including pack values."""
     # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
     
@@ -1004,10 +870,10 @@ async def getClusterProfileByUID(ctx: Context, clusterprofile_uid: str, project_
             "isError": True
         }
     
-    with create_span("getClusterProfileByUID") as span:
+    with create_span("_get_cluster_profile_by_uid") as span:
         safe_set_tool(
             span,
-            name="getClusterProfileByUID",
+            name="_get_cluster_profile_by_uid",
             description="Queries Palette API for a specific cluster profile by UID, returning complete profile data including pack values",
             parameters={
                 "clusterprofile_uid": {"type": "string", "description": "The UID of the cluster profile to retrieve"},
@@ -1038,6 +904,13 @@ async def getClusterProfileByUID(ctx: Context, clusterprofile_uid: str, project_
             res = conn.getresponse()
             data = res.read()
 
+            if res.status == 422:
+                error_data = json.loads(data.decode('utf-8'))
+                raise Exception(f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}")
+
+            if res.status == 429:
+                raise Exception(f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}")
+
             if res.status >= 400:
                 raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
 
@@ -1060,15 +933,9 @@ async def getClusterProfileByUID(ctx: Context, clusterprofile_uid: str, project_
                 "isError": True
             }
 
-async def deleteClusterProfileByUID(ctx: Context, clusterprofile_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
-    """Deletes a specific cluster profile using its UID. The project_id, api_key, and palette_host are optional and will be retrieved from the context if not provided. However, if you are given a project_id, or an api_key,
-    the context will not be used. Instead, the project_id and api_key will be used directly.
-    
-    Args:
-        clusterprofile_uid (str): The UID of the cluster profile to delete
-        project_id (str): The ID of the project to query (optional, omits the ProjectUid header if not provided)
-        api_key (str): The API key for the Palette API (optional, uses default if not provided)
-    """
+
+async def _delete_cluster_profile_by_uid(ctx: Context, clusterprofile_uid: str, project_id: Optional[str] = None, api_key: Optional[str] = None) -> MCPResult:
+    """Internal helper: Deletes a specific cluster profile using its UID."""
     # Get our custom MCP session context
     session_ctx = get_session_context(ctx)
     
@@ -1083,10 +950,10 @@ async def deleteClusterProfileByUID(ctx: Context, clusterprofile_uid: str, proje
             "isError": True
         }
     
-    with create_span("deleteClusterProfileByUID") as span:
+    with create_span("_delete_cluster_profile_by_uid") as span:
         safe_set_tool(
             span,
-            name="deleteClusterProfileByUID",
+            name="_delete_cluster_profile_by_uid",
             description="Deletes a specific cluster profile from Palette using its UID",
             parameters={
                 "clusterprofile_uid": {"type": "string", "description": "The UID of the cluster profile to delete"},
@@ -1117,6 +984,13 @@ async def deleteClusterProfileByUID(ctx: Context, clusterprofile_uid: str, proje
             conn.request("DELETE", url, {}, headers)
             res = conn.getresponse()
             data = res.read()
+
+            if res.status == 422:
+                error_data = json.loads(data.decode('utf-8'))
+                raise Exception(f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}")
+
+            if res.status == 429:
+                raise Exception(f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}")
 
             if res.status >= 400:
                 raise Exception(f"API request failed with status {res.status}: {data.decode('utf-8')}")
@@ -1156,3 +1030,97 @@ async def deleteClusterProfileByUID(ctx: Context, clusterprofile_uid: str, proje
                 "content": [{"type": "text", "text": error_message}],
                 "isError": True
             }
+
+
+async def gather_or_delete_clusterprofiles(
+    ctx: Context,
+    action: str,
+    uid: Optional[str] = None,
+    project_id: Optional[str] = None,
+    api_key: Optional[str] = None
+) -> MCPResult:
+    """Gather information about cluster profiles in Palette or delete a cluster profile in Palette.
+    
+    Args:
+        action: The operation to perform. Must be one of:
+            - "list": Get all cluster profiles in the project
+            - "get": Get detailed information about a specific cluster profile (requires uid)
+            - "delete": Delete a cluster profile (requires uid, requires ALLOW_DANGEROUS_ACTIONS=1)
+        uid: The UID of the cluster profile. Required for "get" and "delete" actions.
+        project_id: Optional project ID override.
+        api_key: Optional API key override.
+    """
+    session_ctx = get_session_context(ctx)
+    
+    with create_span("gather_or_delete_clusterprofiles") as span:
+        safe_set_tool(
+            span,
+            name="gather_or_delete_clusterprofiles",
+            description="Gather information about cluster profiles or delete a cluster profile in Palette",
+            parameters={
+                "action": {"type": "string", "description": "The operation: 'list', 'get', or 'delete'"},
+                "uid": {"type": "string", "description": "The UID of the cluster profile (required for get/delete)"},
+                "project_id": {"type": "string", "description": "The ID of the project (optional)"},
+                "api_key": {"type": "string", "description": "The API key (optional)"}
+            }
+        )
+        
+        safe_set_input(span, {
+            "action": action,
+            "uid": uid
+        })
+        
+        # Validate action - only get, list, delete are allowed.
+        if action not in ["list", "get", "delete"]:
+            error_msg = f"Error: Invalid action '{action}'. Only 'get', 'list', and 'delete' are allowed actions."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for get.
+        if action == "get" and not uid:
+            error_msg = "Error: The 'get' action requires a cluster profile UID. Use action='list' first to retrieve all cluster profiles and identify the UID of the profile you are interested in."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Validate uid requirement for delete.
+        if action == "delete" and not uid:
+            error_msg = "Error: The 'delete' action requires a cluster profile UID. Use action='list' to retrieve all cluster profiles and identify the UID of the profile you want to delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Check dangerous action permission for delete.
+        if action == "delete" and not session_ctx.is_dangerous_actions_allowed():
+            error_msg = "Error: The 'delete' action is not allowed. The ALLOW_DANGEROUS_ACTIONS environment variable must be set to '1' to enable dangerous operations like delete."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {
+                "content": [{"type": "text", "text": error_msg}],
+                "isError": True
+            }
+        
+        # Route to appropriate helper.
+        if action == "list":
+            result = await _list_cluster_profiles(ctx, project_id, api_key)
+        elif action == "get":
+            result = await _get_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        elif action == "delete":
+            result = await _delete_cluster_profile_by_uid(ctx, uid, project_id, api_key)
+        
+        if not result.get("isError", False):
+            safe_set_span_status(span, "OK")
+        else:
+            safe_set_span_status(span, "ERROR")
+        
+        return result

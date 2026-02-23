@@ -1,4 +1,4 @@
-raw-palette-aois.json
+raw-palette-apis.json
 scripts/
 Taskfile.yaml
 .gitignore
@@ -9,3 +9,5 @@ inspector.log
 .git
 .dockerignore
 public
+tmp
+.playwright-mcp
