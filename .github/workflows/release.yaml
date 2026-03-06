@@ -111,7 +111,7 @@ jobs:
           node-version: "22"
 
       - name: Configure AWS credentials from AI Research account
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.CI_CD_IAM_ROLE }}
           aws-region: us-east-1
