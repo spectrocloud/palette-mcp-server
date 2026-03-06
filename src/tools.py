@@ -1,8 +1,8 @@
 # Copyright (c) Spectro Cloud
 # SPDX-License-Identifier: Apache-2.0
 
-import http.client
 import json
+import httpx
 from typing import Dict, TypedDict, Any, List, Optional, Union
 from pydantic import BaseModel
 from kubernetes import client, config
@@ -147,8 +147,6 @@ async def _list_clusters(
         )
 
         try:
-            conn = http.client.HTTPSConnection(palette_host)
-            payload = ""
             headers = {"Accept": "application/json", "apiKey": api_key}
 
             # Only add ProjectUid header if project_id is provided
@@ -158,37 +156,37 @@ async def _list_clusters(
             all_clusters = []
             continue_token = None
 
-            while True:
-                if continue_token:
-                    headers["Continue"] = continue_token
+            async with httpx.AsyncClient(
+                base_url=f"https://{palette_host}", timeout=30
+            ) as client:
+                while True:
+                    if continue_token:
+                        headers["Continue"] = continue_token
 
-                conn.request("GET", "/v1/spectroclusters/", payload, headers)
-                res = conn.getresponse()
-                data = res.read()
+                    res = await client.get("/v1/spectroclusters/", headers=headers)
 
-                if res.status == 422:
-                    error_data = json.loads(data.decode("utf-8"))
-                    raise Exception(
-                        f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}"
-                    )
+                    if res.status_code == 422:
+                        raise Exception(
+                            f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
+                        )
 
-                if res.status == 429:
-                    raise Exception(
-                        f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}"
-                    )
+                    if res.status_code == 429:
+                        raise Exception(
+                            f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
+                        )
 
-                if res.status >= 400:
-                    raise Exception(
-                        f"API request failed with status {res.status}: {data.decode('utf-8')}"
-                    )
+                    if res.status_code >= 400:
+                        raise Exception(
+                            f"API request failed with status {res.status_code}: {res.text}"
+                        )
 
-                json_data = json.loads(data.decode("utf-8"))
-                items = json_data.get("items") or []
-                all_clusters.extend(items)
+                    json_data = res.json()
+                    items = json_data.get("items") or []
+                    all_clusters.extend(items)
 
-                continue_token = json_data.get("listmeta", {}).get("continue")
-                if not continue_token:
-                    break
+                    continue_token = json_data.get("listmeta", {}).get("continue")
+                    if not continue_token:
+                        break
 
             # Clean up values.yaml from cluster profile templates
             for cluster in all_clusters:
@@ -263,7 +261,6 @@ async def _list_active_clusters(
         safe_set_input(span, mask_sensitive_data({"api_key": api_key}))
 
         try:
-            conn = http.client.HTTPSConnection(palette_host)
             headers = {
                 "Accept": "application/json",
                 "Content-Type": "application/json",
@@ -274,97 +271,97 @@ async def _list_active_clusters(
             if project_id:
                 headers["ProjectUid"] = project_id
 
-            payload = json.dumps(
-                {
-                    "filter": {
-                        "conjunction": "and",
-                        "filterGroups": [
-                            {
-                                "conjunction": "and",
-                                "filters": [
-                                    {
-                                        "property": "clusterState",
-                                        "type": "string",
-                                        "condition": {
-                                            "string": {
-                                                "operator": "eq",
-                                                "negation": False,
-                                                "match": {
-                                                    "conjunction": "or",
-                                                    "values": ["Running"],
-                                                },
-                                                "ignoreCase": False,
-                                            }
-                                        },
-                                    }
-                                ],
-                            },
-                            {
-                                "conjunction": "and",
-                                "filters": [
-                                    {
-                                        "property": "environment",
-                                        "type": "string",
-                                        "condition": {
-                                            "string": {
-                                                "operator": "eq",
-                                                "negation": True,
-                                                "match": {
-                                                    "conjunction": "or",
-                                                    "values": ["nested"],
-                                                },
-                                                "ignoreCase": False,
-                                            }
-                                        },
+            payload = {
+                "filter": {
+                    "conjunction": "and",
+                    "filterGroups": [
+                        {
+                            "conjunction": "and",
+                            "filters": [
+                                {
+                                    "property": "clusterState",
+                                    "type": "string",
+                                    "condition": {
+                                        "string": {
+                                            "operator": "eq",
+                                            "negation": False,
+                                            "match": {
+                                                "conjunction": "or",
+                                                "values": ["Running"],
+                                            },
+                                            "ignoreCase": False,
+                                        }
                                     },
-                                    {
-                                        "property": "isDeleted",
-                                        "type": "bool",
-                                        "condition": {"bool": {"value": False}},
+                                }
+                            ],
+                        },
+                        {
+                            "conjunction": "and",
+                            "filters": [
+                                {
+                                    "property": "environment",
+                                    "type": "string",
+                                    "condition": {
+                                        "string": {
+                                            "operator": "eq",
+                                            "negation": True,
+                                            "match": {
+                                                "conjunction": "or",
+                                                "values": ["nested"],
+                                            },
+                                            "ignoreCase": False,
+                                        }
                                     },
-                                ],
-                            },
-                        ],
-                    },
-                    "sort": [{"field": "clusterName", "order": "asc"}],
-                }
-            )
+                                },
+                                {
+                                    "property": "isDeleted",
+                                    "type": "bool",
+                                    "condition": {"bool": {"value": False}},
+                                },
+                            ],
+                        },
+                    ],
+                },
+                "sort": [{"field": "clusterName", "order": "asc"}],
+            }
 
             active_clusters = []
             continue_token = None
 
-            while True:
-                if continue_token:
-                    headers["Continue"] = continue_token
+            async with httpx.AsyncClient(
+                base_url=f"https://{palette_host}", timeout=30
+            ) as client:
+                while True:
+                    if continue_token:
+                        headers["Continue"] = continue_token
 
-                conn.request(
-                    "POST", "/v1/dashboard/spectroclusters/search", payload, headers
-                )
-                res = conn.getresponse()
-                data = res.read()
-
-                if res.status == 422:
-                    error_data = json.loads(data.decode("utf-8"))
-                    raise Exception(
-                        f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}"
+                    res = await client.post(
+                        "/v1/dashboard/spectroclusters/search",
+                        headers=headers,
+                        json=payload,
                     )
 
-                if res.status == 429:
-                    raise Exception(
-                        f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}"
-                    )
+                    if res.status_code == 422:
+                        raise Exception(
+                            f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
+                        )
 
-                if res.status >= 400:
-                    raise Exception(
-                        f"API request failed with status {res.status}: {data.decode('utf-8')}"
-                    )
+                    if res.status_code == 429:
+                        raise Exception(
+                            f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
+                        )
 
-                json_data = json.loads(data.decode("utf-8"))
-                active_clusters.extend(json_data.get("items", []))
+                    if res.status_code >= 400:
+                        raise Exception(
+                            f"API request failed with status {res.status_code}: {res.text}"
+                        )
 
-                continue_token = json_data.get("listmeta", {}).get("continue")
-                if not continue_token:
-                    break
+                    json_data = res.json()
+                    active_clusters.extend(json_data.get("items", []))
+
+                    continue_token = json_data.get("listmeta", {}).get("continue")
+                    if not continue_token:
+                        break
 
             result = {"clusters": {"items": active_clusters}}
             safe_set_output(span, result)
@@ -436,7 +433,6 @@ async def _get_cluster_by_uid(
         safe_set_input(span, mask_sensitive_data({"api_key": api_key}))
 
         try:
-            conn = http.client.HTTPSConnection(palette_host)
             headers = {
                 "Accept": "application/json",
                 "Content-Type": "application/json",
@@ -447,29 +443,36 @@ async def _get_cluster_by_uid(
             if project_id:
                 headers["ProjectUid"] = project_id
 
-            url = f"/v1/spectroclusters/{cluster_uid}?includeTags=true&resolvePackValues=true&includePackMeta=false&profileType=%3Cstring%3E&includeNonSpectroLabels=false"
+            url = f"/v1/spectroclusters/{cluster_uid}"
+            params = {
+                "includeTags": "true",
+                "resolvePackValues": "true",
+                "includePackMeta": "false",
+                "profileType": "<string>",
+                "includeNonSpectroLabels": "false",
+            }
 
-            conn.request("GET", url, {}, headers)
-            res = conn.getresponse()
-            data = res.read()
+            async with httpx.AsyncClient(
+                base_url=f"https://{palette_host}", timeout=30
+            ) as client:
+                res = await client.get(url, headers=headers, params=params)
 
-            if res.status == 422:
-                error_data = json.loads(data.decode("utf-8"))
+            if res.status_code == 422:
                 raise Exception(
-                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}"
+                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
                 )
 
-            if res.status == 429:
+            if res.status_code == 429:
                 raise Exception(
-                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}"
+                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
                 )
 
-            if res.status >= 400:
+            if res.status_code >= 400:
                 raise Exception(
-                    f"API request failed with status {res.status}: {data.decode('utf-8')}"
+                    f"API request failed with status {res.status_code}: {res.text}"
                 )
 
-            result = {"cluster": json.loads(data.decode("utf-8"))}
+            result = {"cluster": res.json()}
             safe_set_output(span, result)
 
             return {
@@ -553,7 +556,6 @@ async def _delete_cluster_by_uid(
         )
 
         try:
-            conn = http.client.HTTPSConnection(palette_host)
             headers = {
                 "Accept": "application/json",
                 "Content-Type": "application/json",
@@ -564,44 +566,45 @@ async def _delete_cluster_by_uid(
             if project_id:
                 headers["ProjectUid"] = project_id
 
-            url = f"/v1/spectroclusters/{cluster_uid}?forceDelete={str(force_delete).lower()}"
+            url = f"/v1/spectroclusters/{cluster_uid}"
+            params = {"forceDelete": str(force_delete).lower()}
 
-            conn.request("DELETE", url, {}, headers)
-            res = conn.getresponse()
-            data = res.read()
+            async with httpx.AsyncClient(
+                base_url=f"https://{palette_host}", timeout=30
+            ) as client:
+                res = await client.delete(url, headers=headers, params=params)
 
-            if res.status == 422:
-                error_data = json.loads(data.decode("utf-8"))
+            if res.status_code == 422:
                 raise Exception(
-                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}"
+                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
                 )
 
-            if res.status == 429:
+            if res.status_code == 429:
                 raise Exception(
-                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}"
+                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
                 )
 
-            if res.status >= 400:
+            if res.status_code >= 400:
                 raise Exception(
-                    f"API request failed with status {res.status}: {data.decode('utf-8')}"
+                    f"API request failed with status {res.status_code}: {res.text}"
                 )
 
             # Handle successful DELETE response (typically 204 No Content)
-            if res.status == 204 or not data or data == b"":
+            if res.status_code == 204 or not res.content:
                 result = {
                     "status": "success",
                     "message": f"Cluster {cluster_uid} deleted successfully",
-                    "http_status": res.status,
+                    "http_status": res.status_code,
                 }
             else:
                 try:
-                    result = {"status": json.loads(data.decode("utf-8"))}
-                except json.JSONDecodeError:
+                    result = {"status": res.json()}
+                except Exception:
                     result = {
                         "status": "success",
                         "message": f"Cluster {cluster_uid} deleted successfully",
-                        "response": data.decode("utf-8"),
-                        "http_status": res.status,
+                        "response": res.text,
+                        "http_status": res.status_code,
                     }
 
             safe_set_output(span, result)
@@ -808,7 +811,6 @@ async def getKubeconfig(
         )
 
         try:
-            conn = http.client.HTTPSConnection(palette_host)
             headers = {"Accept": "application/octet-stream", "apiKey": api_key}
 
             # Only add ProjectUid header if project_id is provided
@@ -821,39 +823,40 @@ async def getKubeconfig(
             else:
                 url = f"/v1/spectroclusters/{cluster_uid}/assets/kubeconfig"
 
-            conn.request("GET", url, {}, headers)
-            res = conn.getresponse()
-            data = res.read()
-
             # Track whether the fetched config is actually an admin config.
             # If the admin endpoint returns 404, fall back to the regular kubeconfig
             # and mark actual_admin_config as False so downstream code reflects the
             # real config type.
             actual_admin_config = admin_config
-            if admin_config and res.status == 404:
-                actual_admin_config = False
-                url = f"/v1/spectroclusters/{cluster_uid}/assets/kubeconfig?frp=true"
-                conn.request("GET", url, {}, headers)
-                res = conn.getresponse()
-                data = res.read()
+            async with httpx.AsyncClient(
+                base_url=f"https://{palette_host}", timeout=30
+            ) as client:
+                res = await client.get(url, headers=headers)
 
-            if res.status == 422:
-                error_data = json.loads(data.decode("utf-8"))
+                if admin_config and res.status_code == 404:
+                    actual_admin_config = False
+                    res = await client.get(
+                        f"/v1/spectroclusters/{cluster_uid}/assets/kubeconfig",
+                        headers=headers,
+                        params={"frp": "true"},
+                    )
+
+            if res.status_code == 422:
                 raise Exception(
-                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}"
+                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
                 )
 
-            if res.status == 429:
+            if res.status_code == 429:
                 raise Exception(
-                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}"
+                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
                 )
 
-            if res.status >= 400:
+            if res.status_code >= 400:
                 raise Exception(
-                    f"API request failed with status {res.status}: {data.decode('utf-8')}"
+                    f"API request failed with status {res.status_code}: {res.text}"
                 )
 
-            kubeconfig_content = data.decode("utf-8")
+            kubeconfig_content = res.text
 
             # Write kubeconfig to temp directory with cluster UID
             try:
@@ -944,8 +947,6 @@ async def _list_cluster_profiles(
         safe_set_input(span, mask_sensitive_data({"api_key": api_key}))
 
         try:
-            conn = http.client.HTTPSConnection(palette_host)
-            payload = ""
             headers = {"Accept": "application/json", "apiKey": api_key}
 
             # Only add ProjectUid header if project_id is provided
@@ -955,36 +956,36 @@ async def _list_cluster_profiles(
             all_profiles = []
             continue_token = None
 
-            while True:
-                if continue_token:
-                    headers["Continue"] = continue_token
+            async with httpx.AsyncClient(
+                base_url=f"https://{palette_host}", timeout=30
+            ) as client:
+                while True:
+                    if continue_token:
+                        headers["Continue"] = continue_token
 
-                conn.request("GET", "/v1/clusterprofiles/", payload, headers)
-                res = conn.getresponse()
-                data = res.read()
+                    res = await client.get("/v1/clusterprofiles/", headers=headers)
 
-                if res.status == 422:
-                    error_data = json.loads(data.decode("utf-8"))
-                    raise Exception(
-                        f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}"
-                    )
+                    if res.status_code == 422:
+                        raise Exception(
+                            f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
+                        )
 
-                if res.status == 429:
-                    raise Exception(
-                        f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}"
-                    )
+                    if res.status_code == 429:
+                        raise Exception(
+                            f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
+                        )
 
-                if res.status >= 400:
-                    raise Exception(
-                        f"API request failed with status {res.status}: {data.decode('utf-8')}"
-                    )
+                    if res.status_code >= 400:
+                        raise Exception(
+                            f"API request failed with status {res.status_code}: {res.text}"
+                        )
 
-                json_data = json.loads(data.decode("utf-8"))
-                all_profiles.extend(json_data.get("items", []))
+                    json_data = res.json()
+                    all_profiles.extend(json_data.get("items", []))
 
-                continue_token = json_data.get("listmeta", {}).get("continue")
-                if not continue_token:
-                    break
+                    continue_token = json_data.get("listmeta", {}).get("continue")
+                    if not continue_token:
+                        break
 
             # Clean up pack values from cluster profiles
             for profile in all_profiles:
@@ -1082,7 +1083,6 @@ async def _get_cluster_profile_by_uid(
         )
 
         try:
-            conn = http.client.HTTPSConnection(palette_host)
             headers = {"Accept": "application/json", "apiKey": api_key}
 
             # Only add ProjectUid header if project_id is provided
@@ -1091,27 +1091,27 @@ async def _get_cluster_profile_by_uid(
 
             url = f"/v1/clusterprofiles/{clusterprofile_uid}"
 
-            conn.request("GET", url, {}, headers)
-            res = conn.getresponse()
-            data = res.read()
+            async with httpx.AsyncClient(
+                base_url=f"https://{palette_host}", timeout=30
+            ) as client:
+                res = await client.get(url, headers=headers)
 
-            if res.status == 422:
-                error_data = json.loads(data.decode("utf-8"))
+            if res.status_code == 422:
                 raise Exception(
-                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}"
+                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
                 )
 
-            if res.status == 429:
+            if res.status_code == 429:
                 raise Exception(
-                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}"
+                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
                 )
 
-            if res.status >= 400:
+            if res.status_code >= 400:
                 raise Exception(
-                    f"API request failed with status {res.status}: {data.decode('utf-8')}"
+                    f"API request failed with status {res.status_code}: {res.text}"
                 )
 
-            result = {"clusterProfile": json.loads(data.decode("utf-8"))}
+            result = {"clusterProfile": res.json()}
             safe_set_output(span, result)
             safe_set_span_status(span, "OK")
 
@@ -1186,7 +1186,6 @@ async def _delete_cluster_profile_by_uid(
         )
 
         try:
-            conn = http.client.HTTPSConnection(palette_host)
             headers = {
                 "Accept": "application/json",
                 "Content-Type": "application/json",
@@ -1199,42 +1198,42 @@ async def _delete_cluster_profile_by_uid(
 
             url = f"/v1/clusterprofiles/{clusterprofile_uid}"
 
-            conn.request("DELETE", url, {}, headers)
-            res = conn.getresponse()
-            data = res.read()
+            async with httpx.AsyncClient(
+                base_url=f"https://{palette_host}", timeout=30
+            ) as client:
+                res = await client.delete(url, headers=headers)
 
-            if res.status == 422:
-                error_data = json.loads(data.decode("utf-8"))
+            if res.status_code == 422:
                 raise Exception(
-                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {error_data}"
+                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
                 )
 
-            if res.status == 429:
+            if res.status_code == 429:
                 raise Exception(
-                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {data.decode('utf-8')}"
+                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
                 )
 
-            if res.status >= 400:
+            if res.status_code >= 400:
                 raise Exception(
-                    f"API request failed with status {res.status}: {data.decode('utf-8')}"
+                    f"API request failed with status {res.status_code}: {res.text}"
                 )
 
             # Handle successful DELETE response (typically 204 No Content)
-            if res.status == 204 or not data or data == b"":
+            if res.status_code == 204 or not res.content:
                 result = {
                     "status": "success",
                     "message": f"Cluster profile {clusterprofile_uid} deleted successfully",
-                    "http_status": res.status,
+                    "http_status": res.status_code,
                 }
             else:
                 try:
-                    result = {"status": json.loads(data.decode("utf-8"))}
-                except json.JSONDecodeError:
+                    result = {"status": res.json()}
+                except Exception:
                     result = {
                         "status": "success",
                         "message": f"Cluster profile {clusterprofile_uid} deleted successfully",
-                        "response": data.decode("utf-8"),
-                        "http_status": res.status,
+                        "response": res.text,
+                        "http_status": res.status_code,
                     }
 
             safe_set_output(span, result)
