@@ -30,7 +30,7 @@ jobs:
       SAME_VERSION: ${{ steps.tag.outputs.SAME_VERSION }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -101,7 +101,7 @@ jobs:
       GORELEASER_CURRENT_TAG: ${{ needs.tag.outputs.VERSION }}
       GORELEASER_PREVIOUS_TAG: ${{ needs.tag.outputs.PREV_VERSION }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           fetch-tags: true
