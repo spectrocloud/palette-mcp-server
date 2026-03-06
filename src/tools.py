@@ -880,9 +880,11 @@ async def getKubeconfig(
                     {"type": "text", "text": kubeconfig_content},
                     {
                         "type": "text",
-                        "text": f"\n{config_type} written to: {kubeconfig_path}"
-                        if kubeconfig_path
-                        else f"\nWarning: Failed to write {config_type.lower()} to temp file",
+                        "text": (
+                            f"\n{config_type} written to: {kubeconfig_path}"
+                            if kubeconfig_path
+                            else f"\nWarning: Failed to write {config_type.lower()} to temp file"
+                        ),
                     },
                 ],
                 "isError": False,
