@@ -89,3 +89,9 @@ tasks:
     desc: "Add license headers to the files"
     cmds:
       - copywrite headers .
+
+  fmt:
+    desc: "Format the code"
+    dir: src/
+    cmds:
+      - uv format --preview-features format
