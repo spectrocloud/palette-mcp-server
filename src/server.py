@@ -90,9 +90,12 @@ def create_mcp() -> FastMCP:
     if all_palette_apis:
         openapi_spec = load_openapi_spec("../openapi/openapi.yaml", logger)
         mcp_names = generate_mcp_names(openapi_spec, logger)
+        base_headers: dict = {"apiKey": palette_apikey}
+        if default_project_id:
+            base_headers["projectUID"] = default_project_id
         client = httpx.AsyncClient(
             base_url=f"https://{palette_host}",
-            headers={"apiKey": palette_apikey, "projectUID": default_project_id},
+            headers=base_headers,
             timeout=20,
         )
         _mcp = FastMCP.from_openapi(
