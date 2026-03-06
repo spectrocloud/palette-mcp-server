@@ -22,7 +22,8 @@ def main():
     try:
         print("🚀 Starting Palette MCP Server...")
         # MCP servers use stdio transport, not HTTP ports
-        server.mcp.run(transport="stdio")
+        mcp = server.create_mcp()
+        mcp.run(transport="stdio")
     except KeyboardInterrupt:
         # This shouldn't be reached due to signal handler, but just in case
         signal_handler(signal.SIGINT, None)

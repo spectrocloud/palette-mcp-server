@@ -81,14 +81,34 @@ else:
         os.environ.pop("PHOENIX_COLLECTOR_ENDPOINT", None)
 
 
-# Load the OpenAPI spec
-if all_palette_apis:
-    openapi_spec = load_openapi_spec("../openapi/openapi.yaml", logger)
-    mcp_names = generate_mcp_names(openapi_spec, logger)
+def create_mcp() -> FastMCP:
+    """Construct and return the correct MCP instance based on configuration.
 
-else:
-    openapi_spec = None
-    mcp = FastMCP("Palette MCP Server", version=version)
+    When AUTO_GENERATE_MCP_TOOLS is enabled, builds an OpenAPI-backed server.
+    Otherwise, builds the curated manual-tool server with proxy support.
+    """
+    if all_palette_apis:
+        openapi_spec = load_openapi_spec("../openapi/openapi.yaml", logger)
+        mcp_names = generate_mcp_names(openapi_spec, logger)
+        client = httpx.AsyncClient(
+            base_url=f"https://{palette_host}",
+            headers={"apiKey": palette_apikey, "projectUID": default_project_id},
+            timeout=20,
+        )
+        _mcp = FastMCP.from_openapi(
+            openapi_spec=openapi_spec,
+            client=client,
+            name="Palette MCP Server",
+            timeout=20,
+            route_maps=[
+                RouteMap(mcp_type=MCPType.TOOL),
+            ],
+            mcp_names=mcp_names,
+        )
+        logger.info("Server running with stdio transport and auto generated MCP tools")
+        return _mcp
+
+    _mcp = FastMCP("Palette MCP Server", version=version)
     # All tools - dangerous actions are handled internally at runtime via session_ctx.is_dangerous_actions_allowed().
     SAFE_TOOLS = [
         gather_or_delete_clusters,
@@ -104,12 +124,12 @@ else:
         SAFE_TOOLS + (DANGEROUS_TOOLS if allow_dangerous_actions else []),
         key=operator.attrgetter("__name__"),
     )
-    # Register all tools
+    # Register all tools.
     for tool in TOOLS:
-        mcp.tool()(tool)
+        _mcp.tool()(tool)
 
-    # Create and store our custom MCP session context
-    mcp.session_context = MCPSessionContext(
+    # Create and store our custom MCP session context.
+    _mcp.session_context = MCPSessionContext(
         host=palette_host,
         apikey=palette_apikey,
         default_project_id=default_project_id,
@@ -145,18 +165,22 @@ else:
     # Add more MCP proxy servers here (unconditionally or with their own conditions)
     # MCP_PROXY_SERVERS.append({...})
 
-    # Mount all configured MCP proxy servers
+    # Mount all configured MCP proxy servers.
     for server_config in MCP_PROXY_SERVERS:
         try:
             proxy = FastMCP.as_proxy(
                 server_config["config"], name=server_config["name"]
             )
-            mcp.mount(server_config["prefix"], proxy)
+            _mcp.mount(server_config["prefix"], proxy)
             logger.info(
                 f"Mounted MCP proxy: {server_config['name']} at prefix '{server_config['prefix']}'"
             )
         except Exception as e:
             logger.warning(f"Failed to mount MCP proxy {server_config['name']}: {e}")
+
+    logger.info("Server running with stdio transport")
+    return _mcp
+
 
 if __name__ == "__main__":
     # Register cleanup function to run on normal exit
@@ -168,28 +192,7 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, signal_handler)  # Container termination
 
     try:
-        if all_palette_apis:
-            client = httpx.AsyncClient(
-                base_url=f"https://{palette_host}",
-                headers={"apiKey": palette_apikey, "projectUID": default_project_id},
-                timeout=20,
-            )
-            mcp = FastMCP.from_openapi(
-                openapi_spec=openapi_spec,
-                client=client,
-                name="Palette MCP Server",
-                timeout=20,
-                route_maps=[
-                    RouteMap(mcp_type=MCPType.TOOL),
-                ],
-                mcp_names=mcp_names,
-            )
-            logger.info(
-                "Server running with stdio transport and auto generated MCP tools"
-            )
-        else:
-            logger.info("Server running with stdio transport")
-        # Initialize and run the server
+        mcp = create_mcp()
         mcp.run(transport="stdio")
     except KeyboardInterrupt:
         # This shouldn't be reached due to signal handler, but just in case
