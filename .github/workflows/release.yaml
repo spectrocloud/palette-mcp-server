@@ -30,7 +30,7 @@ jobs:
       SAME_VERSION: ${{ steps.tag.outputs.SAME_VERSION }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -101,10 +101,14 @@ jobs:
       GORELEASER_CURRENT_TAG: ${{ needs.tag.outputs.VERSION }}
       GORELEASER_PREVIOUS_TAG: ${{ needs.tag.outputs.PREV_VERSION }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           fetch-tags: true
+
+      - name: Import Vault Credentials
+        id: import-secrets
+        uses: ./.github/actions/vault-credentials
 
       - uses: actions/setup-node@v4
         with:
@@ -131,16 +135,16 @@ jobs:
         uses: arduino/setup-task@v2
         with:
           version: 3.x
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{ steps.import-secrets.outputs.VAULT_GITHUB_TOKEN }}
 
       - name: Generate API Spec
         run: |
           task convert-openapi
 
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           args: release --clean
           version: "~> v2"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.import-secrets.outputs.VAULT_GITHUB_TOKEN }}
