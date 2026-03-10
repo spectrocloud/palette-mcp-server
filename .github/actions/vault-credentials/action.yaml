@@ -1,0 +1,25 @@
+name: Vault Credentials
+
+inputs:
+  APP_NAME:
+    description: "Vault role name"
+    default: "palette-artificial-intelligence"
+    required: false
+
+outputs:
+  VAULT_GITHUB_TOKEN:
+    description: "GitHub token retrieved from Vault"
+    value: ${{ steps.import-secrets.outputs.VAULT_GITHUB_TOKEN }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Retrieve Credentials
+      id: import-secrets
+      uses: hashicorp/vault-action@4c06c5ccf5c0761b6029f56cfb1dcf5565918a3b # v3.4.0
+      with:
+        url: https://vault.prism.spectrocloud.com
+        method: jwt
+        role: ${{ inputs.APP_NAME }}
+        secrets: |
+          github/token/${{ inputs.APP_NAME }} token | VAULT_GITHUB_TOKEN
