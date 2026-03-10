@@ -141,7 +141,7 @@ jobs:
         run: |
           task convert-openapi
 
-      - uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           args: release --clean
