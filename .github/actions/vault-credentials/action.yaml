@@ -2,7 +2,7 @@ name: Vault Credentials
 
 inputs:
   APP_NAME:
-    description: "GitHub application name"
+    description: "Vault role name"
     default: "palette-artificial-intelligence"
     required: false
 
