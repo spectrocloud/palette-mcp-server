@@ -1,0 +1,62 @@
+name: Pre-merge Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: pr-review-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  run-ci:
+    # runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    if: ${{ !github.event.pull_request.draft && github.actor != 'dependabot[bot]' && github.actor != 'dependabot-preview[bot]' }}
+    steps:
+      # If the condition above is not met, aka, the PR is not in draft status, then this step is skipped.
+      # Because this step is part of the critical path, omission of this step will result in remaining CI steps not gettinge executed.
+      # As of 8/8/2022 there is no way to enforce this behavior in GitHub Actions CI.
+      - run: exit 0
+
+  reviewable:
+    name: reviewable
+    runs-on: [ubuntu-latest]
+    needs: [run-ci]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+
+      - name: Import Vault Credentials
+        id: import-secrets
+        uses: ./.github/actions/vault-credentials
+
+      - name: Checkout Repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ steps.import-secrets.outputs.VAULT_GITHUB_TOKEN }}
+
+      - name: go-task/setup-task
+        uses: go-task/setup-task@v1.0.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Ensure PR is reviewable
+        shell: bash
+        run: task fmt
+
+      - name: Commit reviewable diff
+        uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0 # v6
+        with:
+          commit_message: "ci: make reviewable"

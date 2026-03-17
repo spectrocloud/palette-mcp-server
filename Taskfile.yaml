@@ -31,13 +31,6 @@ tasks:
       - echo "Starting Palette MCP Server"
       - uv run python server.py
 
-  clean:
-    desc: "Clean the local openapi directory"
-    cmds:
-      - rm -rf openapi/
-      - rm openapi.json
-      - rm openapi.yaml
-
   mcp-inspect:
     desc: "Inspect the MCP server using the MCP Inspector"
     dotenv: [.env, ../.env]
@@ -57,7 +50,6 @@ tasks:
         -e SPECTROCLOUD_APIKEY=$SPECTROCLOUD_APIKEY \
         -e MCP_INSPECTOR=true \
         -e PHOENIX_COLLECTOR_ENDPOINT=$PHOENIX_COLLECTOR_ENDPOINT \
-        -e KAPA_API_KEY=$KAPA_API_KEY \
         uv run src/server.py --method tools/list
 
   build-image:
@@ -75,16 +67,6 @@ tasks:
     cmds:
       - aws ecr-public get-login-password --region us-east-1 --profile ai | docker login --username AWS --password-stdin public.ecr.aws/palette-ai || true
 
-  convert-openapi:
-    desc: "Generate the OpenAPI client"
-    # deps: [download-openapi-spec]
-    cmds:
-      - echo "Current working directory:" && pwd && ls -la raw-palette-apis.json
-      - |
-        npx --yes @openapitools/openapi-generator-cli generate \
-        -g openapi-yaml \
-        -i /local/raw-palette-apis.json \
-        -o /local
   license:
     desc: "Add license headers to the files"
     cmds:

@@ -40,7 +40,6 @@ RUN apt-get update -y && \
 
 
 COPY --from=builder /app /app
-COPY openapi/openapi.yaml /app/openapi/openapi.yaml
 
 WORKDIR /app
 
