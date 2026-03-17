@@ -1,6 +1,6 @@
 # Palette MCP Server
 
-The Palette MCP server is tool for interacting with Palette through the Model Context Protocol (MCP).
+The Palette MCP server is a tool for interacting with Palette through the Model Context Protocol (MCP). You can use it to expose function calls to your Large Language Model (LLM) to interact with Palette.
 
 > [!WARNING]
 > This is an experimental project and subject to breaking changes.

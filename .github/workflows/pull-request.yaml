@@ -37,14 +37,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
       - name: Import Vault Credentials
-        id: vault
-        uses: ./.github/workflows/vault-credentials
+        id: import-secrets
+        uses: ./.github/actions/vault-credentials
 
       - name: Checkout Repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           ref: ${{ github.head_ref }}
-          token: ${{ steps.vault.outputs.VAULT_GITHUB_TOKEN }}
+          token: ${{ steps.import-secrets.outputs.VAULT_GITHUB_TOKEN }}
 
       - name: go-task/setup-task
         uses: go-task/setup-task@v1.0.0
