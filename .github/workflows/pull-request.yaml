@@ -49,6 +49,9 @@ jobs:
       - name: go-task/setup-task
         uses: go-task/setup-task@v1.0.0
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
       - name: Ensure PR is reviewable
         shell: bash
         run: task fmt
