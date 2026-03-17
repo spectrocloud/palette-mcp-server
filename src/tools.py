@@ -43,6 +43,8 @@ class Cluster(BaseModel):
 class OutputModel(BaseModel):
     clusters: List[Cluster]
     summary: str
+
+
 class MCPResult(TypedDict):
     """Type definition for MCP tool results"""
 
