@@ -19,7 +19,6 @@ dockers:
       - uv.lock
       - src/
       - README.md
-      - openapi/
     build_flag_templates:
       - "--pull"
       - "--platform=linux/amd64"
@@ -38,7 +37,6 @@ dockers:
       - uv.lock
       - src/
       - README.md
-      - openapi/
     build_flag_templates:
       - "--pull"
       - "--platform=linux/arm64"
