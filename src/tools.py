@@ -1330,6 +1330,16 @@ async def manage_resource_tags(
             safe_set_span_status(span, "ERROR", error_msg)
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
 
+        if action == "delete" and not session_ctx.is_dangerous_actions_allowed():
+            error_msg = (
+                "Error: The 'delete' action is not allowed. The "
+                "ALLOW_DANGEROUS_ACTIONS environment variable must be set to '1' "
+                "to enable dangerous operations like delete."
+            )
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {"content": [{"type": "text", "text": error_msg}], "isError": True}
+
         canonical_resource_type = (
             "spcPolicies" if resource_type == "policy" else resource_type
         )
@@ -1457,12 +1467,7 @@ async def manage_resource_tags(
                     return tag_value.strip()
 
                 if canonical_resource_type == "spectroclusters":
-                    label_backed_tags = sorted(
-                        key
-                        for key, value in labels.items()
-                        if str(value).strip() == "spectro__tag" and str(key).strip()
-                    )
-                    current_tags = label_backed_tags
+                    current_tags, _ = merge_tags(metadata.get("labels"), [], "add")
                 elif canonical_resource_type == "clusterprofiles":
                     current_tags = extract_cluster_profile_tags(resource_doc)
                 elif canonical_resource_type == "clusterTemplates":
@@ -1538,19 +1543,28 @@ async def manage_resource_tags(
                     existing_labels = metadata.get("labels", {}) or {}
                     updated_labels = dict(existing_labels)
 
-                    # Only replace label-based tags; keep non-tag labels unchanged.
-                    existing_tag_label_keys = [
-                        key
-                        for key, value in existing_labels.items()
-                        if str(value).strip() == "spectro__tag"
-                    ]
-                    for key in existing_tag_label_keys:
+                    # Replace tag keys while preserving unrelated labels.
+                    previous_tag_keys = {
+                        _tag_key(tag_value)
+                        for tag_value in before_tags
+                        if _tag_key(tag_value)
+                    }
+                    for key in previous_tag_keys:
                         updated_labels.pop(key, None)
 
                     for tag_value in after_tags:
-                        key = _tag_key(tag_value)
-                        if key:
-                            updated_labels[key] = "spectro__tag"
+                        if ":" in tag_value:
+                            key, val = tag_value.split(":", 1)
+                            key = key.strip()
+                            val = val.strip()
+                            if key and val:
+                                updated_labels[key] = val
+                            elif key:
+                                updated_labels[key] = "spectro__tag"
+                        else:
+                            key = tag_value.strip()
+                            if key:
+                                updated_labels[key] = "spectro__tag"
 
                     update_metadata["labels"] = updated_labels
                 elif canonical_resource_type == "clusterprofiles":
