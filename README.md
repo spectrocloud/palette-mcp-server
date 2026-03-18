@@ -9,6 +9,8 @@ The Palette MCP is a local-first MCP server. The MCP server is hosted in a conta
 
 ![Architecture diagram showing the Palette MCP deployed locally and making API calls to Palette](./public/images/arch_diagram.png)
 
+## Tools
+
 The Palette MCP server provides several tools for interacting with Palette. Several of the function calls expect an action parameter to be provided. The action parameter is used to determine the action to perform. For example, the `gather_or_delete_clusters` tool expects an action parameter of `list`, `get`, or `delete`. If an action contains a dangerous method, the `ALLOW_DANGEROUS_ACTIONS` environment variable must be set to `1` to enable the dangerous method. Otherwise, the dangerous method will be rejected. Check out the [Usage](#usage) section to learn more about how to use the tools. Some tools require explicit enablement before they can be used. Refer to the [Dangerous Actions](#dangerous-actions) section for more information.
 
 | Tool                               | Description                                                                       | Dangerous Method Included? | Dangerous Method? |
@@ -153,16 +155,25 @@ Same behavior as `SPECTROCLOUD_DEFAULT_PROJECT_ID` applies to the API key. If yo
 
 ### Dangerous Actions
 
-To prevent accidental use of dangerous actions, the Palette MCP server requires you to set the `ALLOW_DANGEROUS_ACTIONS` environment variable to `1`. This is a precautionary measure to prevent accidental use of dangerous actions. Review the [Tools](#available-tools) section to understand which tools are dangerous and require approval.
+To prevent accidental use of dangerous actions, the Palette MCP server requires you to set the `ALLOW_DANGEROUS_ACTIONS` environment variable to `1`. This is a precautionary measure to prevent accidental use of dangerous actions. Review the [Tools](#tools) section to understand which tools are dangerous and require approval.
 
 ### Accessing Kubeconfig Files
 
-The Palette MCP server provides tools to access kubeconfig files for clusters. You can access the kubeconfig files by mounting a local folder to the container. In the container, all kubeconfig files are stored in the `/tmp/kubeconfig` folder. If you use the `getKubeconfig` tool (with `admin_config=True` for admin kubeconfig), the kubeconfig file will be stored in the `/tmp/kubeconfig` folder. The filename will have the cluster's UID as the name, for example, `68669fcfee517a7f9a91a9e5.kubeconfig`. Admin kubeconfig files have the suffix `-admin` in the filename, for example, `68669fcfee517a7f9a91a9e5-admin.kubeconfig`.
+The Palette MCP server provides tools to access kubeconfig files for clusters. You can access the kubeconfig files by mounting a local folder to the container with the `--mount` flag in the MCP configuration. In the container, all kubeconfig files are stored in the `/tmp/kubeconfig` folder. If you use the `getKubeconfig` tool (with `admin_config=True` for admin kubeconfig), the kubeconfig file will be stored in the `/tmp/kubeconfig` folder. The filename will have the cluster's UID as the name, for example, `68669fcfee517a7f9a91a9e5.kubeconfig`. Admin kubeconfig files have the suffix `-admin` in the filename, for example, `68669fcfee517a7f9a91a9e5-admin.kubeconfig`.
 
 > [!WARNING]
 > The folder you use to mount to the container will be wiped when the container is stopped and started again. The Palette MCP server will automatically remove the kubeconfig files from its /tmp/kubeconfig folder.
 
 Once you have the kubeconfig file locally, assuming your application with an LLM has access to your local filesystem and a shell environment, you can have the application use the kubeconfig file to access the cluster. For example, if you are using Cursor, you can ask it to use the kubeconfig file to with the `kubectl` command to access the cluster.
+
+We recommend you provide guidance to LLMs on how to properly use the kubeconfig file to access the cluster. Check out the [example.agents.md](./skills/example.agents.md) file for an example of how to provide guidance to LLMs on how to properly use the kubeconfig file to access the cluster. This assumes you provided a folder to store the kubeconfig files on the host machine using the `--mount` flag in the MCP configuration.
+
+```
+"--mount",
+"type=bind,source=/FILE_PATH_REPLACE_ME/kubeconfig,target=/tmp/kubeconfig",
+```
+
+If you use the example agents.md, make sure to replace the file path with the path to your kubeconfig folder.
 
 ### Removing a Cluster
 
