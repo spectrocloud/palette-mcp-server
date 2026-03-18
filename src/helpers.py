@@ -258,7 +258,9 @@ async def palette_api_request(
     allowed_status_codes: Optional[Set[int]] = None,
 ) -> httpx.Response:
     """Execute a Palette API request with common validation and rate-limit handling."""
-    async with httpx.AsyncClient(base_url=f"https://{palette_host}", timeout=30) as client:
+    async with httpx.AsyncClient(
+        base_url=f"https://{palette_host}", timeout=30
+    ) as client:
         response = await client.request(
             method=method, url=path, headers=headers, params=params, json=body
         )
@@ -348,6 +350,7 @@ TAG_UPDATE_ENDPOINTS = {
 
 def _normalize_tag_value(value: Any) -> List[str]:
     """Normalize common tag field formats into a string list."""
+
     def _strip_internal_marker(tag: str) -> str:
         text = (tag or "").strip()
         if not text:
