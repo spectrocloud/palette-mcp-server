@@ -10,6 +10,7 @@ from tools import (
     gather_or_delete_clusters,
     gather_or_delete_clusterprofiles,
     getKubeconfig,
+    manage_resource_tags,
 )
 
 # Use FastMCP's logging utility for server-side logging
@@ -76,6 +77,7 @@ def create_mcp() -> FastMCP:
         gather_or_delete_clusters,
         gather_or_delete_clusterprofiles,
         getKubeconfig,
+        manage_resource_tags,
     ]
 
     # Only functions that are considered dangerous by design are loaded here. If an action contains a dangerous method it's not included here.

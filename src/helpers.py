@@ -7,6 +7,8 @@ import json
 import glob
 import signal
 import sys
+import httpx
+from typing import Dict, Any, Optional, Set, List
 from contextlib import nullcontext
 
 # Only import and setup OpenTelemetry if Phoenix is configured
@@ -229,3 +231,224 @@ def set_span_data(
             span.set_status(status)
     except (TypeError, AttributeError):
         pass
+
+
+def build_headers(
+    api_key: str,
+    project_id: Optional[str] = None,
+    include_content_type: bool = False,
+    accept: str = "application/json",
+) -> Dict[str, str]:
+    """Build request headers for Palette API calls."""
+    headers = {"Accept": accept, "apiKey": api_key}
+    if include_content_type:
+        headers["Content-Type"] = "application/json"
+    if project_id:
+        headers["ProjectUid"] = project_id
+    return headers
+
+
+async def palette_api_request(
+    palette_host: str,
+    method: str,
+    path: str,
+    headers: Dict[str, str],
+    params: Optional[Dict[str, str]] = None,
+    body: Optional[Dict[str, Any]] = None,
+    allowed_status_codes: Optional[Set[int]] = None,
+) -> httpx.Response:
+    """Execute a Palette API request with common validation and rate-limit handling."""
+    async with httpx.AsyncClient(
+        base_url=f"https://{palette_host}", timeout=30
+    ) as client:
+        response = await client.request(
+            method=method, url=path, headers=headers, params=params, json=body
+        )
+
+    allowed_status_codes = allowed_status_codes or set()
+    if response.status_code in allowed_status_codes:
+        return response
+
+    if response.status_code == 422:
+        details = response.text
+        try:
+            details = response.json()
+        except Exception:
+            pass
+        raise Exception(
+            f"Validation error (422): The request was well-formed but contains semantic errors. Details: {details}"
+        )
+
+    if response.status_code == 429:
+        raise Exception(
+            f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {response.text}"
+        )
+
+    if response.status_code >= 400:
+        try:
+            error_payload = response.json()
+        except Exception:
+            error_payload = {}
+
+        if error_payload.get("code") == "EdgeHostDeviceNotRegistered":
+            edgehost_message = error_payload.get(
+                "message", "Edge host device is not yet registered."
+            )
+            raise Exception(
+                "Edge host is not registered and cannot be tagged yet. "
+                f"Details: {edgehost_message}"
+            )
+
+        raise Exception(
+            f"API request failed with status {response.status_code}: {response.text}"
+        )
+
+    return response
+
+
+TAG_LIST_ENDPOINTS = {
+    "spectroclusters": "/v1/spectroclusters/tags",
+    "clusterTemplates": "/v1/clusterTemplates/tags",
+    "edgehosts": "/v1/edgehosts/tags",
+    "spcPolicies": "/v1/spcPolicies/tags",
+}
+
+
+TAG_UPDATE_ENDPOINTS = {
+    "spectroclusters": {
+        "get_path": "/v1/spectroclusters/{uid}",
+        "get_method": "GET",
+        "update_path": "/v1/spectroclusters/{uid}/metadata",
+        "update_method": "PATCH",
+    },
+    "clusterprofiles": {
+        "get_path": "/v1/clusterprofiles/{uid}",
+        "get_method": "GET",
+        "update_path": "/v1/clusterprofiles/{uid}/metadata",
+        "update_method": "PATCH",
+    },
+    "clusterTemplates": {
+        "get_path": "/v1/clusterTemplates/{uid}",
+        "get_method": "GET",
+        "update_path": "/v1/clusterTemplates/{uid}/metadata",
+        "update_method": "PATCH",
+    },
+    "edgehosts": {
+        "get_path": "/v1/edgehosts/{uid}",
+        "get_method": "GET",
+        "update_path": "/v1/edgehosts/{uid}/meta",
+        "update_method": "PUT",
+    },
+    "spcPolicies": {
+        "get_path": "/v1/spcPolicies/{policy_type}/{uid}",
+        "get_method": "GET",
+        "update_path": "/v1/spcPolicies/{policy_type}/{uid}",
+        "update_method": "PUT",
+    },
+}
+
+
+def _normalize_tag_value(value: Any) -> List[str]:
+    """Normalize common tag field formats into a string list."""
+
+    def _strip_internal_marker(tag: str) -> str:
+        text = (tag or "").strip()
+        if not text:
+            return ""
+        if ":" in text:
+            key, val = text.split(":", 1)
+            if val.strip() == "spectro__tag":
+                return key.strip()
+        return text
+
+    if value is None:
+        return []
+
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return []
+        if "," in text and ":" in text:
+            return [
+                cleaned
+                for cleaned in (
+                    _strip_internal_marker(part) for part in text.split(",")
+                )
+                if cleaned
+            ]
+        cleaned = _strip_internal_marker(text)
+        return [cleaned] if cleaned else []
+
+    if isinstance(value, list):
+        normalized: List[str] = []
+        for item in value:
+            if item is None:
+                continue
+            cleaned = _strip_internal_marker(str(item))
+            if cleaned:
+                normalized.append(cleaned)
+        return normalized
+
+    if isinstance(value, dict):
+        tags = []
+        for key, val in value.items():
+            if val is None or str(val).strip() == "":
+                tags.append(str(key))
+            elif str(val).strip() == "spectro__tag":
+                tags.append(str(key))
+            else:
+                tags.append(f"{key}:{val}")
+        return tags
+
+    return []
+
+
+def merge_tags(
+    existing_tags: Any, requested_tags: List[str], operation: str
+) -> tuple[List[str], List[str]]:
+    """Merge tags for add/remove operations using list semantics."""
+    current = set(_normalize_tag_value(existing_tags))
+    requested = [tag.strip() for tag in requested_tags if tag and tag.strip()]
+
+    def _tag_key(tag: str) -> str:
+        if ":" in tag:
+            key, _ = tag.split(":", 1)
+            return key.strip()
+        return tag.strip()
+
+    if operation == "add":
+        updated = set(current)
+        # Upsert by tag key so create can replace stale values (env:dev -> env:prod).
+        for requested_tag in requested:
+            requested_key = _tag_key(requested_tag)
+            updated = {tag for tag in updated if _tag_key(tag) != requested_key}
+            updated.add(requested_tag)
+    elif operation == "remove":
+        updated = set(current)
+        for requested_tag in requested:
+            if ":" in requested_tag:
+                updated.discard(requested_tag)
+            else:
+                requested_key = _tag_key(requested_tag)
+                updated = {tag for tag in updated if _tag_key(tag) != requested_key}
+    else:
+        raise ValueError(
+            "Invalid operation for merge_tags. Supported values are 'add' and 'remove'."
+        )
+
+    before = sorted(current)
+    after = sorted(updated)
+    return before, after
+
+
+def extract_cluster_profile_tags(cluster_profile: Dict[str, Any]) -> List[str]:
+    """Extract tags from cluster profile metadata only."""
+    metadata = cluster_profile.get("metadata", {})
+    tags: List[str] = []
+    tags.extend(_normalize_tag_value(metadata.get("tags")))
+    tags.extend(_normalize_tag_value(metadata.get("tag")))
+    # Some profile APIs expose user metadata in labels.
+    if not tags:
+        tags.extend(_normalize_tag_value(metadata.get("labels")))
+    deduped = list(dict.fromkeys(tag for tag in tags if tag and tag.strip()))
+    return sorted(deduped)

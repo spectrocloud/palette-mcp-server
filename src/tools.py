@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
-import httpx
 from typing import Dict, TypedDict, Any, List, Optional, Union
 from pydantic import BaseModel
 from datetime import datetime
@@ -11,6 +10,12 @@ from context import MCPSessionContext
 from helpers import (
     write_kubeconfig_to_temp,
     create_span,
+    build_headers,
+    extract_cluster_profile_tags,
+    merge_tags,
+    palette_api_request,
+    TAG_LIST_ENDPOINTS,
+    TAG_UPDATE_ENDPOINTS,
     safe_set_tool,
     safe_set_input,
     safe_set_output,
@@ -145,46 +150,29 @@ async def _list_clusters(
         )
 
         try:
-            headers = {"Accept": "application/json", "apiKey": api_key}
-
-            # Only add ProjectUid header if project_id is provided
-            if project_id:
-                headers["ProjectUid"] = project_id
+            headers = build_headers(api_key=api_key, project_id=project_id)
 
             all_clusters = []
             continue_token = None
 
-            async with httpx.AsyncClient(
-                base_url=f"https://{palette_host}", timeout=30
-            ) as client:
-                while True:
-                    if continue_token:
-                        headers["Continue"] = continue_token
+            while True:
+                request_headers = dict(headers)
+                if continue_token:
+                    request_headers["Continue"] = continue_token
 
-                    res = await client.get("/v1/spectroclusters/", headers=headers)
+                res = await palette_api_request(
+                    palette_host=palette_host,
+                    method="GET",
+                    path="/v1/spectroclusters/",
+                    headers=request_headers,
+                )
+                json_data = res.json()
+                items = json_data.get("items") or []
+                all_clusters.extend(items)
 
-                    if res.status_code == 422:
-                        raise Exception(
-                            f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
-                        )
-
-                    if res.status_code == 429:
-                        raise Exception(
-                            f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
-                        )
-
-                    if res.status_code >= 400:
-                        raise Exception(
-                            f"API request failed with status {res.status_code}: {res.text}"
-                        )
-
-                    json_data = res.json()
-                    items = json_data.get("items") or []
-                    all_clusters.extend(items)
-
-                    continue_token = json_data.get("listmeta", {}).get("continue")
-                    if not continue_token:
-                        break
+                continue_token = json_data.get("listmeta", {}).get("continue")
+                if not continue_token:
+                    break
 
             # Clean up values.yaml from cluster profile templates
             for cluster in all_clusters:
@@ -259,15 +247,9 @@ async def _list_active_clusters(
         safe_set_input(span, mask_sensitive_data({"api_key": api_key}))
 
         try:
-            headers = {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "apiKey": api_key,
-            }
-
-            # Only add ProjectUid header if project_id is provided
-            if project_id:
-                headers["ProjectUid"] = project_id
+            headers = build_headers(
+                api_key=api_key, project_id=project_id, include_content_type=True
+            )
 
             payload = {
                 "filter": {
@@ -326,40 +308,24 @@ async def _list_active_clusters(
             active_clusters = []
             continue_token = None
 
-            async with httpx.AsyncClient(
-                base_url=f"https://{palette_host}", timeout=30
-            ) as client:
-                while True:
-                    if continue_token:
-                        headers["Continue"] = continue_token
+            while True:
+                request_headers = dict(headers)
+                if continue_token:
+                    request_headers["Continue"] = continue_token
 
-                    res = await client.post(
-                        "/v1/dashboard/spectroclusters/search",
-                        headers=headers,
-                        json=payload,
-                    )
+                res = await palette_api_request(
+                    palette_host=palette_host,
+                    method="POST",
+                    path="/v1/dashboard/spectroclusters/search",
+                    headers=request_headers,
+                    body=payload,
+                )
+                json_data = res.json()
+                active_clusters.extend(json_data.get("items", []))
 
-                    if res.status_code == 422:
-                        raise Exception(
-                            f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
-                        )
-
-                    if res.status_code == 429:
-                        raise Exception(
-                            f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
-                        )
-
-                    if res.status_code >= 400:
-                        raise Exception(
-                            f"API request failed with status {res.status_code}: {res.text}"
-                        )
-
-                    json_data = res.json()
-                    active_clusters.extend(json_data.get("items", []))
-
-                    continue_token = json_data.get("listmeta", {}).get("continue")
-                    if not continue_token:
-                        break
+                continue_token = json_data.get("listmeta", {}).get("continue")
+                if not continue_token:
+                    break
 
             result = {"clusters": {"items": active_clusters}}
             safe_set_output(span, result)
@@ -431,15 +397,9 @@ async def _get_cluster_by_uid(
         safe_set_input(span, mask_sensitive_data({"api_key": api_key}))
 
         try:
-            headers = {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "apiKey": api_key,
-            }
-
-            # Only add ProjectUid header if project_id is provided
-            if project_id:
-                headers["ProjectUid"] = project_id
+            headers = build_headers(
+                api_key=api_key, project_id=project_id, include_content_type=True
+            )
 
             url = f"/v1/spectroclusters/{cluster_uid}"
             params = {
@@ -450,25 +410,13 @@ async def _get_cluster_by_uid(
                 "includeNonSpectroLabels": "false",
             }
 
-            async with httpx.AsyncClient(
-                base_url=f"https://{palette_host}", timeout=30
-            ) as client:
-                res = await client.get(url, headers=headers, params=params)
-
-            if res.status_code == 422:
-                raise Exception(
-                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
-                )
-
-            if res.status_code == 429:
-                raise Exception(
-                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
-                )
-
-            if res.status_code >= 400:
-                raise Exception(
-                    f"API request failed with status {res.status_code}: {res.text}"
-                )
+            res = await palette_api_request(
+                palette_host=palette_host,
+                method="GET",
+                path=url,
+                headers=headers,
+                params=params,
+            )
 
             result = {"cluster": res.json()}
             safe_set_output(span, result)
@@ -554,38 +502,20 @@ async def _delete_cluster_by_uid(
         )
 
         try:
-            headers = {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "apiKey": api_key,
-            }
-
-            # Only add ProjectUid header if project_id is provided
-            if project_id:
-                headers["ProjectUid"] = project_id
+            headers = build_headers(
+                api_key=api_key, project_id=project_id, include_content_type=True
+            )
 
             url = f"/v1/spectroclusters/{cluster_uid}"
             params = {"forceDelete": str(force_delete).lower()}
 
-            async with httpx.AsyncClient(
-                base_url=f"https://{palette_host}", timeout=30
-            ) as client:
-                res = await client.delete(url, headers=headers, params=params)
-
-            if res.status_code == 422:
-                raise Exception(
-                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
-                )
-
-            if res.status_code == 429:
-                raise Exception(
-                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
-                )
-
-            if res.status_code >= 400:
-                raise Exception(
-                    f"API request failed with status {res.status_code}: {res.text}"
-                )
+            res = await palette_api_request(
+                palette_host=palette_host,
+                method="DELETE",
+                path=url,
+                headers=headers,
+                params=params,
+            )
 
             # Handle successful DELETE response (typically 204 No Content)
             if res.status_code == 204 or not res.content:
@@ -809,11 +739,11 @@ async def getKubeconfig(
         )
 
         try:
-            headers = {"Accept": "application/octet-stream", "apiKey": api_key}
-
-            # Only add ProjectUid header if project_id is provided
-            if project_id:
-                headers["ProjectUid"] = project_id
+            headers = build_headers(
+                api_key=api_key,
+                project_id=project_id,
+                accept="application/octet-stream",
+            )
 
             # Choose endpoint based on admin_config
             if admin_config:
@@ -826,32 +756,22 @@ async def getKubeconfig(
             # and mark actual_admin_config as False so downstream code reflects the
             # real config type.
             actual_admin_config = admin_config
-            async with httpx.AsyncClient(
-                base_url=f"https://{palette_host}", timeout=30
-            ) as client:
-                res = await client.get(url, headers=headers)
+            res = await palette_api_request(
+                palette_host=palette_host,
+                method="GET",
+                path=url,
+                headers=headers,
+                allowed_status_codes={404} if admin_config else None,
+            )
 
-                if admin_config and res.status_code == 404:
-                    actual_admin_config = False
-                    res = await client.get(
-                        f"/v1/spectroclusters/{cluster_uid}/assets/kubeconfig",
-                        headers=headers,
-                        params={"frp": "true"},
-                    )
-
-            if res.status_code == 422:
-                raise Exception(
-                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
-                )
-
-            if res.status_code == 429:
-                raise Exception(
-                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
-                )
-
-            if res.status_code >= 400:
-                raise Exception(
-                    f"API request failed with status {res.status_code}: {res.text}"
+            if admin_config and res.status_code == 404:
+                actual_admin_config = False
+                res = await palette_api_request(
+                    palette_host=palette_host,
+                    method="GET",
+                    path=f"/v1/spectroclusters/{cluster_uid}/assets/kubeconfig",
+                    headers=headers,
+                    params={"frp": "true"},
                 )
 
             kubeconfig_content = res.text
@@ -945,45 +865,28 @@ async def _list_cluster_profiles(
         safe_set_input(span, mask_sensitive_data({"api_key": api_key}))
 
         try:
-            headers = {"Accept": "application/json", "apiKey": api_key}
-
-            # Only add ProjectUid header if project_id is provided
-            if project_id:
-                headers["ProjectUid"] = project_id
+            headers = build_headers(api_key=api_key, project_id=project_id)
 
             all_profiles = []
             continue_token = None
 
-            async with httpx.AsyncClient(
-                base_url=f"https://{palette_host}", timeout=30
-            ) as client:
-                while True:
-                    if continue_token:
-                        headers["Continue"] = continue_token
+            while True:
+                request_headers = dict(headers)
+                if continue_token:
+                    request_headers["Continue"] = continue_token
 
-                    res = await client.get("/v1/clusterprofiles/", headers=headers)
+                res = await palette_api_request(
+                    palette_host=palette_host,
+                    method="GET",
+                    path="/v1/clusterprofiles/",
+                    headers=request_headers,
+                )
+                json_data = res.json()
+                all_profiles.extend(json_data.get("items", []))
 
-                    if res.status_code == 422:
-                        raise Exception(
-                            f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
-                        )
-
-                    if res.status_code == 429:
-                        raise Exception(
-                            f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
-                        )
-
-                    if res.status_code >= 400:
-                        raise Exception(
-                            f"API request failed with status {res.status_code}: {res.text}"
-                        )
-
-                    json_data = res.json()
-                    all_profiles.extend(json_data.get("items", []))
-
-                    continue_token = json_data.get("listmeta", {}).get("continue")
-                    if not continue_token:
-                        break
+                continue_token = json_data.get("listmeta", {}).get("continue")
+                if not continue_token:
+                    break
 
             # Clean up pack values from cluster profiles
             for profile in all_profiles:
@@ -1088,26 +991,12 @@ async def _get_cluster_profile_by_uid(
                 headers["ProjectUid"] = project_id
 
             url = f"/v1/clusterprofiles/{clusterprofile_uid}"
-
-            async with httpx.AsyncClient(
-                base_url=f"https://{palette_host}", timeout=30
-            ) as client:
-                res = await client.get(url, headers=headers)
-
-            if res.status_code == 422:
-                raise Exception(
-                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
-                )
-
-            if res.status_code == 429:
-                raise Exception(
-                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
-                )
-
-            if res.status_code >= 400:
-                raise Exception(
-                    f"API request failed with status {res.status_code}: {res.text}"
-                )
+            res = await palette_api_request(
+                palette_host=palette_host,
+                method="GET",
+                path=url,
+                headers=headers,
+            )
 
             result = {"clusterProfile": res.json()}
             safe_set_output(span, result)
@@ -1184,37 +1073,18 @@ async def _delete_cluster_profile_by_uid(
         )
 
         try:
-            headers = {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "apiKey": api_key,
-            }
-
-            # Only add ProjectUid header if project_id is provided
-            if project_id:
-                headers["ProjectUid"] = project_id
+            headers = build_headers(
+                api_key=api_key, project_id=project_id, include_content_type=True
+            )
 
             url = f"/v1/clusterprofiles/{clusterprofile_uid}"
 
-            async with httpx.AsyncClient(
-                base_url=f"https://{palette_host}", timeout=30
-            ) as client:
-                res = await client.delete(url, headers=headers)
-
-            if res.status_code == 422:
-                raise Exception(
-                    f"Validation error (422): The request was well-formed but contains semantic errors. Details: {res.json()}"
-                )
-
-            if res.status_code == 429:
-                raise Exception(
-                    f"Rate limit error (429): Too many requests. Please wait before retrying. Response: {res.text}"
-                )
-
-            if res.status_code >= 400:
-                raise Exception(
-                    f"API request failed with status {res.status_code}: {res.text}"
-                )
+            res = await palette_api_request(
+                palette_host=palette_host,
+                method="DELETE",
+                path=url,
+                headers=headers,
+            )
 
             # Handle successful DELETE response (typically 204 No Content)
             if res.status_code == 204 or not res.content:
@@ -1339,3 +1209,536 @@ async def gather_or_delete_clusterprofiles(
             safe_set_span_status(span, "ERROR")
 
         return result
+
+
+async def manage_resource_tags(
+    ctx: Context,
+    action: str,
+    resource_type: Optional[str] = None,
+    uid: Optional[str] = None,
+    policy_type: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    project_id: Optional[str] = None,
+    api_key: Optional[str] = None,
+) -> MCPResult:
+    """Manage Palette resource tags through one action-based tool.
+
+    Args:
+        action: One of list, get, create, or delete.
+        resource_type: Resource type for tag operations. Supports spectroclusters, clusterprofiles, clusterTemplates, edgehosts, and policy.
+        uid: A resource UID is required by get, create, and delete.
+        policy_type: Optional policy family for policy/spcPolicies actions (for example, maintenance). If omitted, the tool tries maintenance automatically.
+        tags: Tag values used by create and delete. You can pass in a list of tags. Each tag should be a string in the format "key:value" or a single key.
+        project_id: Optional project ID override.
+        api_key: Optional API key override.
+    """
+    session_ctx = get_session_context(ctx)
+    api_key = session_ctx.get_api_key(api_key)
+    project_id = session_ctx.get_project_id(project_id)
+    palette_host = session_ctx.get_host()
+
+    if not api_key:
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Error: No api_key provided and no default API key configured",
+                }
+            ],
+            "isError": True,
+        }
+
+    with create_span("manage_resource_tags") as span:
+        safe_set_tool(
+            span,
+            name="manage_resource_tags",
+            description="Manage tag lifecycle in Palette, including list/get/create/delete tag actions",
+            parameters={
+                "action": {
+                    "type": "string",
+                    "description": "One of: list, get, create, delete",
+                },
+                "resource_type": {
+                    "type": "string",
+                    "description": "Resource type for tag operations. One of: spectroclusters, clusterprofiles, clusterTemplates, edgehosts, policy (alias: spcPolicies)",
+                },
+                "uid": {
+                    "type": "string",
+                    "description": "Resource uid for get, create, and delete",
+                },
+                "policy_type": {
+                    "type": "string",
+                    "description": "Optional policy family for policy/spcPolicies actions. If omitted, the tool tries maintenance.",
+                },
+                "tags": {
+                    "type": "array",
+                    "description": "Tags used by create and delete",
+                },
+                "project_id": {
+                    "type": "string",
+                    "description": "The project ID override",
+                },
+                "api_key": {"type": "string", "description": "The API key override"},
+            },
+        )
+
+        safe_set_input(
+            span,
+            mask_sensitive_data(
+                {
+                    "action": action,
+                    "resource_type": resource_type,
+                    "uid": uid,
+                    "policy_type": policy_type,
+                    "tags": tags,
+                    "project_id": project_id,
+                    "api_key": api_key,
+                }
+            ),
+        )
+
+        valid_actions = {
+            "list",
+            "get",
+            "create",
+            "delete",
+        }
+        if action not in valid_actions:
+            error_msg = f"Error: Invalid action '{action}'. Supported actions are 'list', 'get', 'create', and 'delete'."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {"content": [{"type": "text", "text": error_msg}], "isError": True}
+
+        if action == "list" and not resource_type:
+            error_msg = (
+                f"Error: The '{action}' action requires 'resource_type' to be provided."
+            )
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {"content": [{"type": "text", "text": error_msg}], "isError": True}
+
+        if action in {"get", "create", "delete"} and (not resource_type or not uid):
+            error_msg = (
+                f"Error: The '{action}' action requires both 'resource_type' and 'uid'."
+            )
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {"content": [{"type": "text", "text": error_msg}], "isError": True}
+
+        if action in {"create", "delete"} and not tags:
+            error_msg = f"Error: The '{action}' action requires 'tags' to be provided."
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {"content": [{"type": "text", "text": error_msg}], "isError": True}
+
+        if action == "delete" and not session_ctx.is_dangerous_actions_allowed():
+            error_msg = (
+                "Error: The 'delete' action is not allowed. The "
+                "ALLOW_DANGEROUS_ACTIONS environment variable must be set to '1' "
+                "to enable dangerous operations like delete."
+            )
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {"content": [{"type": "text", "text": error_msg}], "isError": True}
+
+        canonical_resource_type = (
+            "spcPolicies" if resource_type == "policy" else resource_type
+        )
+
+        try:
+            result: Dict[str, Any]
+
+            if action == "list":
+                headers = build_headers(api_key=api_key, project_id=project_id)
+                params: Optional[Dict[str, str]] = None
+
+                if canonical_resource_type == "clusterprofiles":
+                    # Reuse the same list behavior as gather_or_delete_clusterprofiles
+                    # so tag extraction reflects the currently working MCP tool.
+                    list_result = await _list_cluster_profiles(
+                        ctx, project_id=project_id, api_key=api_key
+                    )
+                    if list_result.get("isError", False):
+                        return list_result
+
+                    list_text = (
+                        list_result.get("content", [{}])[0].get("text", "{}")
+                        if list_result.get("content")
+                        else "{}"
+                    )
+                    list_payload = json.loads(list_text)
+                    all_profiles = list_payload.get("clusterProfiles", {}).get(
+                        "items", []
+                    )
+
+                    extracted_tags: set[str] = set()
+                    for profile in all_profiles:
+                        extracted_tags.update(extract_cluster_profile_tags(profile))
+
+                    result = {
+                        "action": action,
+                        "resource_type": resource_type,
+                        "data": {"tags": sorted(extracted_tags)},
+                    }
+                else:
+                    if canonical_resource_type not in TAG_LIST_ENDPOINTS:
+                        raise ValueError(
+                            f"Error: Unsupported resource_type '{resource_type}' for list."
+                        )
+                    path = TAG_LIST_ENDPOINTS[canonical_resource_type]
+                    response = await palette_api_request(
+                        palette_host=palette_host,
+                        method="GET",
+                        path=path,
+                        headers=headers,
+                        params=params,
+                    )
+                    result = {
+                        "action": action,
+                        "resource_type": resource_type,
+                        "data": response.json(),
+                    }
+
+            else:
+                if canonical_resource_type not in TAG_UPDATE_ENDPOINTS:
+                    raise ValueError(
+                        f"Error: Unsupported resource_type '{resource_type}' for {action}."
+                    )
+
+                endpoint_cfg = TAG_UPDATE_ENDPOINTS[canonical_resource_type]
+                path_kwargs: Dict[str, Any] = {"uid": uid}
+
+                get_headers = {"Accept": "application/json", "apiKey": api_key}
+                if project_id:
+                    get_headers["ProjectUid"] = project_id
+                get_params = (
+                    {"includeTags": "true"}
+                    if canonical_resource_type == "spectroclusters"
+                    else None
+                )
+
+                get_response = None
+                if canonical_resource_type == "spcPolicies":
+                    # If type is omitted, try maintenance as the default policy family.
+                    resolved_policy_type = (policy_type or "").strip()
+                    candidate_policy_types = (
+                        [resolved_policy_type]
+                        if resolved_policy_type
+                        else ["maintenance"]
+                    )
+                    for candidate in candidate_policy_types:
+                        probe_response = await palette_api_request(
+                            palette_host=palette_host,
+                            method=endpoint_cfg["get_method"],
+                            path=endpoint_cfg["get_path"].format(
+                                uid=uid, policy_type=candidate
+                            ),
+                            headers=get_headers,
+                            params=get_params,
+                            allowed_status_codes={404},
+                        )
+                        if probe_response.status_code < 400:
+                            resolved_policy_type = candidate
+                            get_response = probe_response
+                            break
+
+                    if not resolved_policy_type:
+                        raise ValueError(
+                            "Error: Could not resolve policy type from this UID. "
+                            "Provide 'policy_type' explicitly if it is not maintenance."
+                        )
+
+                    path_kwargs["policy_type"] = resolved_policy_type
+
+                if get_response is None:
+                    get_response = await palette_api_request(
+                        palette_host=palette_host,
+                        method=endpoint_cfg["get_method"],
+                        path=endpoint_cfg["get_path"].format(**path_kwargs),
+                        headers=get_headers,
+                        params=get_params,
+                    )
+
+                resource_doc = get_response.json()
+                metadata = resource_doc.get("metadata", {})
+                labels = metadata.get("labels", {}) or {}
+
+                def _tag_key(tag_value: str) -> str:
+                    if ":" in tag_value:
+                        key, _ = tag_value.split(":", 1)
+                        return key.strip()
+                    return tag_value.strip()
+
+                if canonical_resource_type == "spectroclusters":
+                    current_tags, _ = merge_tags(metadata.get("labels"), [], "add")
+                elif canonical_resource_type == "clusterprofiles":
+                    current_tags = extract_cluster_profile_tags(resource_doc)
+                elif canonical_resource_type == "clusterTemplates":
+                    current_tags, _ = merge_tags(metadata.get("labels"), [], "add")
+                elif canonical_resource_type == "spcPolicies":
+                    current_tags, _ = merge_tags(metadata.get("labels"), [], "add")
+                elif canonical_resource_type == "edgehosts":
+                    current_tags, _ = merge_tags(metadata.get("labels"), [], "add")
+                else:
+                    current_tags, _ = merge_tags(metadata.get("tags"), [], "add")
+
+                if action == "get":
+                    result = {
+                        "action": action,
+                        "resource_type": resource_type,
+                        "uid": uid,
+                        "data": {"tags": current_tags},
+                    }
+                    if canonical_resource_type == "spcPolicies":
+                        result["policy_type"] = path_kwargs.get("policy_type")
+                    safe_set_output(span, result)
+                    safe_set_span_status(span, "OK")
+                    return {
+                        "content": [
+                            {"type": "text", "text": json.dumps(result, indent=2)}
+                        ],
+                        "isError": False,
+                    }
+
+                if canonical_resource_type == "spectroclusters":
+                    before_tags, after_tags = merge_tags(
+                        current_tags,
+                        tags or [],
+                        "add" if action == "create" else "remove",
+                    )
+                elif canonical_resource_type == "clusterprofiles":
+                    before_tags, after_tags = merge_tags(
+                        current_tags,
+                        tags or [],
+                        "add" if action == "create" else "remove",
+                    )
+                elif canonical_resource_type == "clusterTemplates":
+                    before_tags, after_tags = merge_tags(
+                        current_tags,
+                        tags or [],
+                        "add" if action == "create" else "remove",
+                    )
+                elif canonical_resource_type == "spcPolicies":
+                    before_tags, after_tags = merge_tags(
+                        current_tags,
+                        tags or [],
+                        "add" if action == "create" else "remove",
+                    )
+                elif canonical_resource_type == "edgehosts":
+                    before_tags, after_tags = merge_tags(
+                        current_tags,
+                        tags or [],
+                        "add" if action == "create" else "remove",
+                    )
+                else:
+                    before_tags, after_tags = merge_tags(
+                        metadata.get("tags"),
+                        tags or [],
+                        "add" if action == "create" else "remove",
+                    )
+
+                update_metadata: Dict[str, Any] = {
+                    "name": metadata.get("name"),
+                    "annotations": metadata.get("annotations", {}),
+                    "labels": metadata.get("labels", {}),
+                    "tags": after_tags,
+                }
+
+                if canonical_resource_type == "spectroclusters":
+                    existing_labels = metadata.get("labels", {}) or {}
+                    updated_labels = dict(existing_labels)
+
+                    # Replace tag keys while preserving unrelated labels.
+                    previous_tag_keys = {
+                        _tag_key(tag_value)
+                        for tag_value in before_tags
+                        if _tag_key(tag_value)
+                    }
+                    for key in previous_tag_keys:
+                        updated_labels.pop(key, None)
+
+                    for tag_value in after_tags:
+                        if ":" in tag_value:
+                            key, val = tag_value.split(":", 1)
+                            key = key.strip()
+                            val = val.strip()
+                            if key and val:
+                                updated_labels[key] = val
+                            elif key:
+                                updated_labels[key] = "spectro__tag"
+                        else:
+                            key = tag_value.strip()
+                            if key:
+                                updated_labels[key] = "spectro__tag"
+
+                    update_metadata["labels"] = updated_labels
+                elif canonical_resource_type == "clusterprofiles":
+                    existing_labels = metadata.get("labels", {}) or {}
+                    updated_labels = dict(existing_labels)
+                    value_backed_tags: List[str] = []
+
+                    # Remove any keys that were part of the previous tag set, then rebuild.
+                    # This ensures delete removes key:value tags as well as key-only tags.
+                    previous_tag_keys = {
+                        _tag_key(tag_value)
+                        for tag_value in before_tags
+                        if _tag_key(tag_value)
+                    }
+                    for key in previous_tag_keys:
+                        updated_labels.pop(key, None)
+
+                    for tag_value in after_tags:
+                        if ":" in tag_value:
+                            key, val = tag_value.split(":", 1)
+                            key = key.strip()
+                            val = val.strip()
+                            if key and val:
+                                updated_labels[key] = val
+                                if val != "spectro__tag":
+                                    value_backed_tags.append(f"{key}:{val}")
+                            elif key:
+                                updated_labels[key] = "spectro__tag"
+                        else:
+                            key = tag_value.strip()
+                            if key:
+                                updated_labels[key] = "spectro__tag"
+
+                    update_metadata["labels"] = updated_labels
+                    # Keep explicit key:value tags in metadata.tags for APIs that surface tags directly.
+                    update_metadata["tags"] = sorted(set(value_backed_tags))
+                elif canonical_resource_type == "clusterTemplates":
+                    existing_labels = metadata.get("labels", {}) or {}
+                    updated_labels = dict(existing_labels)
+                    previous_tag_keys = {
+                        _tag_key(tag_value)
+                        for tag_value in before_tags
+                        if _tag_key(tag_value)
+                    }
+                    for key in previous_tag_keys:
+                        updated_labels.pop(key, None)
+
+                    for tag_value in after_tags:
+                        if ":" in tag_value:
+                            key, val = tag_value.split(":", 1)
+                            key = key.strip()
+                            val = val.strip()
+                            if key and val:
+                                updated_labels[key] = val
+                            elif key:
+                                updated_labels[key] = "spectro__tag"
+                        else:
+                            key = tag_value.strip()
+                            if key:
+                                updated_labels[key] = "spectro__tag"
+
+                    update_metadata["labels"] = updated_labels
+                    update_metadata.pop("tags", None)
+                elif canonical_resource_type == "spcPolicies":
+                    existing_labels = metadata.get("labels", {}) or {}
+                    updated_labels = dict(existing_labels)
+                    previous_tag_keys = {
+                        _tag_key(tag_value)
+                        for tag_value in before_tags
+                        if _tag_key(tag_value)
+                    }
+                    for key in previous_tag_keys:
+                        updated_labels.pop(key, None)
+
+                    for tag_value in after_tags:
+                        if ":" in tag_value:
+                            key, val = tag_value.split(":", 1)
+                            key = key.strip()
+                            val = val.strip()
+                            if key and val:
+                                updated_labels[key] = val
+                            elif key:
+                                updated_labels[key] = "spectro__tag"
+                        else:
+                            key = tag_value.strip()
+                            if key:
+                                updated_labels[key] = "spectro__tag"
+
+                    update_metadata["labels"] = updated_labels
+                    update_metadata.pop("tags", None)
+                elif canonical_resource_type == "edgehosts":
+                    existing_labels = metadata.get("labels", {}) or {}
+                    updated_labels = dict(existing_labels)
+                    previous_tag_keys = {
+                        _tag_key(tag_value)
+                        for tag_value in before_tags
+                        if _tag_key(tag_value)
+                    }
+                    for key in previous_tag_keys:
+                        updated_labels.pop(key, None)
+
+                    for tag_value in after_tags:
+                        if ":" in tag_value:
+                            key, val = tag_value.split(":", 1)
+                            key = key.strip()
+                            val = val.strip()
+                            if key and val:
+                                updated_labels[key] = val
+                            elif key:
+                                updated_labels[key] = "spectro__tag"
+                        else:
+                            key = tag_value.strip()
+                            if key:
+                                updated_labels[key] = "spectro__tag"
+
+                    # Edgehost meta updates follow metadata.labels + name + uid shape.
+                    update_metadata = {
+                        "name": metadata.get("name"),
+                        "uid": metadata.get("uid", uid),
+                        "labels": updated_labels,
+                    }
+
+                update_body = {"metadata": update_metadata}
+                if canonical_resource_type == "clusterprofiles":
+                    spec = resource_doc.get("spec", {})
+                    version = spec.get("version")
+                    if version:
+                        update_body["spec"] = {"version": version}
+                elif canonical_resource_type == "spcPolicies":
+                    update_body["spec"] = resource_doc.get("spec", {})
+
+                update_headers = build_headers(
+                    api_key=api_key,
+                    project_id=project_id,
+                    include_content_type=True,
+                )
+
+                update_response = await palette_api_request(
+                    palette_host=palette_host,
+                    method=endpoint_cfg["update_method"],
+                    path=endpoint_cfg["update_path"].format(**path_kwargs),
+                    headers=update_headers,
+                    body=update_body,
+                )
+
+                result = {
+                    "action": action,
+                    "resource_type": resource_type,
+                    "uid": uid,
+                    "data": {
+                        "tags_before": before_tags,
+                        "tags_after": after_tags,
+                    },
+                    "http_status": update_response.status_code,
+                }
+                if canonical_resource_type == "spcPolicies":
+                    result["policy_type"] = path_kwargs.get("policy_type")
+
+            safe_set_output(span, result)
+            safe_set_span_status(span, "OK")
+            return {
+                "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
+                "isError": False,
+            }
+        except Exception as e:
+            error_message = f"Error during API call: {str(e)}"
+            safe_set_output(span, {"error": error_message})
+            safe_set_span_status(span, "ERROR", str(e))
+            return {
+                "content": [{"type": "text", "text": error_message}],
+                "isError": True,
+            }
