@@ -51,11 +51,6 @@ def cleanup_temp_files():
     try:
         temp_dir = tempfile.gettempdir()
 
-
-
-
-
-
         cleaned_count = 0
 
         # Clean up kubeconfig files in the subdirectory (current version)
