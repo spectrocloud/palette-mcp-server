@@ -110,6 +110,11 @@ jobs:
         id: import-secrets
         uses: ./.github/actions/vault-credentials
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version-file: src/.python-version
+
       - name: Configure AWS credentials from AI Research account
         uses: aws-actions/configure-aws-credentials@v6
         with:

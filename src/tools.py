@@ -5,7 +5,6 @@ import json
 import httpx
 from typing import Dict, TypedDict, Any, List, Optional, Union
 from pydantic import BaseModel
-from kubernetes import client, config
 from datetime import datetime
 from fastmcp import FastMCP, Context
 from context import MCPSessionContext
