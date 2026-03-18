@@ -1274,7 +1274,10 @@ async def manage_resource_tags(
                     "type": "array",
                     "description": "Tags used by create and delete",
                 },
-                "project_id": {"type": "string", "description": "The project ID override"},
+                "project_id": {
+                    "type": "string",
+                    "description": "The project ID override",
+                },
                 "api_key": {"type": "string", "description": "The API key override"},
             },
         )
@@ -1301,9 +1304,7 @@ async def manage_resource_tags(
             "delete",
         }
         if action not in valid_actions:
-            error_msg = (
-                f"Error: Invalid action '{action}'. Supported actions are 'list', 'get', 'create', and 'delete'."
-            )
+            error_msg = f"Error: Invalid action '{action}'. Supported actions are 'list', 'get', 'create', and 'delete'."
             safe_set_output(span, {"error": error_msg})
             safe_set_span_status(span, "ERROR", error_msg)
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
@@ -1366,8 +1367,8 @@ async def manage_resource_tags(
                         else "{}"
                     )
                     list_payload = json.loads(list_text)
-                    all_profiles = (
-                        list_payload.get("clusterProfiles", {}).get("items", [])
+                    all_profiles = list_payload.get("clusterProfiles", {}).get(
+                        "items", []
                     )
 
                     extracted_tags: set[str] = set()
@@ -1421,7 +1422,9 @@ async def manage_resource_tags(
                     # If type is omitted, try maintenance as the default policy family.
                     resolved_policy_type = (policy_type or "").strip()
                     candidate_policy_types = (
-                        [resolved_policy_type] if resolved_policy_type else ["maintenance"]
+                        [resolved_policy_type]
+                        if resolved_policy_type
+                        else ["maintenance"]
                     )
                     for candidate in candidate_policy_types:
                         probe_response = await palette_api_request(
@@ -1491,7 +1494,9 @@ async def manage_resource_tags(
                     safe_set_output(span, result)
                     safe_set_span_status(span, "OK")
                     return {
-                        "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
+                        "content": [
+                            {"type": "text", "text": json.dumps(result, indent=2)}
+                        ],
                         "isError": False,
                     }
 
