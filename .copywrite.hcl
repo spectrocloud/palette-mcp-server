@@ -18,5 +18,6 @@ project {
     "vendor/**",
     "**autogen**",
     ".venv",
+    "__pycache__"
   ]
 }
