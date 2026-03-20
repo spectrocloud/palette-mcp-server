@@ -168,7 +168,8 @@ async def _list_clusters(
                     "name": metadata.get("name"),
                     "state": status.get("state"),
                     "cloud_type": cloud_config.get("type"),
-                    "location": cloud_config.get("region") or cloud_config.get("location"),
+                    "location": cloud_config.get("region")
+                    or cloud_config.get("location"),
                 }
 
             all_clusters = []
@@ -198,7 +199,9 @@ async def _list_clusters(
                                     for pack in template["packs"]:
                                         if "values" in pack:
                                             del pack["values"]
-                    cleaned_items.append(_compact_cluster(cluster) if compact else cluster)
+                    cleaned_items.append(
+                        _compact_cluster(cluster) if compact else cluster
+                    )
 
                 page_continue = json_data.get("listmeta", {}).get("continue")
 
@@ -363,7 +366,8 @@ async def _list_active_clusters(
                     "name": metadata.get("name"),
                     "state": status.get("state"),
                     "cloud_type": cloud_config.get("type"),
-                    "location": cloud_config.get("region") or cloud_config.get("location"),
+                    "location": cloud_config.get("region")
+                    or cloud_config.get("location"),
                 }
 
             active_clusters = []
@@ -383,7 +387,9 @@ async def _list_active_clusters(
                 )
                 json_data = res.json()
                 items = json_data.get("items", [])
-                cleaned_items = [_compact_cluster(item) if compact else item for item in items]
+                cleaned_items = [
+                    _compact_cluster(item) if compact else item for item in items
+                ]
                 page_continue = json_data.get("listmeta", {}).get("continue")
 
                 if (
@@ -650,7 +656,7 @@ async def gather_or_delete_clusters(
     project_id: Optional[str] = None,
     api_key: Optional[str] = None,
 ) -> MCPResult:
-    """Gather information about clusters or delete a cluster in Palette. 
+    """Gather information about clusters or delete a cluster in Palette.
     Results are automatically compacted to avoid oversized responses and improve performance. To retrieve all results, use the pagination continue_token parameter in subsequent calls until no continue_token is returned.
 
     Args:
@@ -753,7 +759,9 @@ async def gather_or_delete_clusters(
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
 
         if action == "list" and limit is not None and limit <= 0:
-            error_msg = "Error: The 'limit' parameter must be greater than 0 for list action."
+            error_msg = (
+                "Error: The 'limit' parameter must be greater than 0 for list action."
+            )
             safe_set_output(span, {"error": error_msg})
             safe_set_span_status(span, "ERROR", error_msg)
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
@@ -1040,7 +1048,10 @@ async def _list_cluster_profiles(
                                     del pack["values"]
 
                         # Handle draft packs.
-                        if "draft" in profile["spec"] and "packs" in profile["spec"]["draft"]:
+                        if (
+                            "draft" in profile["spec"]
+                            and "packs" in profile["spec"]["draft"]
+                        ):
                             for pack in profile["spec"]["draft"]["packs"]:
                                 if "values" in pack:
                                     del pack["values"]
@@ -1392,7 +1403,9 @@ async def gather_or_delete_clusterprofiles(
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
 
         if action == "list" and limit is not None and limit <= 0:
-            error_msg = "Error: The 'limit' parameter must be greater than 0 for list action."
+            error_msg = (
+                "Error: The 'limit' parameter must be greater than 0 for list action."
+            )
             safe_set_output(span, {"error": error_msg})
             safe_set_span_status(span, "ERROR", error_msg)
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
