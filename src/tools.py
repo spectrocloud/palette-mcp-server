@@ -101,7 +101,12 @@ def safe_set_span_status(span, status_code: str, description: str = None):
 
 
 async def _list_clusters(
-    ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None
+    ctx: Context,
+    project_id: Optional[str] = None,
+    api_key: Optional[str] = None,
+    limit: Optional[int] = 25,
+    continue_token: Optional[str] = None,
+    compact: bool = True,
 ) -> MCPResult:
     """Internal helper: Queries the Palette API to find all clusters in a given project, regardless of state."""
     # Get our custom MCP session context
@@ -152,13 +157,28 @@ async def _list_clusters(
         try:
             headers = build_headers(api_key=api_key, project_id=project_id)
 
+            def _compact_cluster(cluster: Dict[str, Any]) -> Dict[str, Any]:
+                """Return a lightweight view of a cluster."""
+                metadata = cluster.get("metadata", {}) or {}
+                spec = cluster.get("spec", {}) or {}
+                cloud_config = spec.get("cloudConfig", {}) or {}
+                status = cluster.get("status", {}) or {}
+                return {
+                    "uid": metadata.get("uid"),
+                    "name": metadata.get("name"),
+                    "state": status.get("state"),
+                    "cloud_type": cloud_config.get("type"),
+                    "location": cloud_config.get("region")
+                    or cloud_config.get("location"),
+                }
+
             all_clusters = []
-            continue_token = None
+            next_request_continue = continue_token
 
             while True:
                 request_headers = dict(headers)
-                if continue_token:
-                    request_headers["Continue"] = continue_token
+                if next_request_continue:
+                    request_headers["Continue"] = next_request_continue
 
                 res = await palette_api_request(
                     palette_host=palette_host,
@@ -168,24 +188,50 @@ async def _list_clusters(
                 )
                 json_data = res.json()
                 items = json_data.get("items") or []
-                all_clusters.extend(items)
+                cleaned_items = []
+                for cluster in items:
+                    # Clean up values.yaml from cluster profile templates.
+                    if "spec" in cluster:
+                        spec = cluster["spec"]
+                        if "clusterProfileTemplates" in spec:
+                            for template in spec["clusterProfileTemplates"]:
+                                if "packs" in template:
+                                    for pack in template["packs"]:
+                                        if "values" in pack:
+                                            del pack["values"]
+                    cleaned_items.append(
+                        _compact_cluster(cluster) if compact else cluster
+                    )
 
-                continue_token = json_data.get("listmeta", {}).get("continue")
-                if not continue_token:
+                page_continue = json_data.get("listmeta", {}).get("continue")
+
+                if (
+                    all_clusters
+                    and limit is not None
+                    and (len(all_clusters) + len(cleaned_items)) > limit
+                ):
+                    next_request_continue = page_continue
                     break
 
-            # Clean up values.yaml from cluster profile templates
-            for cluster in all_clusters:
-                if "spec" in cluster:
-                    spec = cluster["spec"]
-                    if "clusterProfileTemplates" in spec:
-                        for template in spec["clusterProfileTemplates"]:
-                            if "packs" in template:
-                                for pack in template["packs"]:
-                                    if "values" in pack:
-                                        del pack["values"]
+                all_clusters.extend(cleaned_items)
 
-            result = {"clusters": {"items": all_clusters}}
+                if not page_continue:
+                    next_request_continue = None
+                    break
+                if limit is not None and len(all_clusters) >= limit:
+                    next_request_continue = page_continue
+                    break
+                next_request_continue = page_continue
+
+            result = {
+                "clusters": {
+                    "items": all_clusters,
+                    "returned_count": len(all_clusters),
+                    "limit": limit,
+                    "next_continue_token": next_request_continue,
+                    "compact": compact,
+                }
+            }
             safe_set_output(span, result)
             safe_set_span_status(span, "OK")
 
@@ -206,7 +252,12 @@ async def _list_clusters(
 
 
 async def _list_active_clusters(
-    ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None
+    ctx: Context,
+    project_id: Optional[str] = None,
+    api_key: Optional[str] = None,
+    limit: Optional[int] = 25,
+    continue_token: Optional[str] = None,
+    compact: bool = True,
 ) -> MCPResult:
     """Internal helper: Queries the Palette API to find all active (running) clusters in a given project."""
     # Get our custom MCP session context
@@ -305,13 +356,28 @@ async def _list_active_clusters(
                 "sort": [{"field": "clusterName", "order": "asc"}],
             }
 
+            def _compact_cluster(cluster: Dict[str, Any]) -> Dict[str, Any]:
+                """Return a lightweight view of a cluster."""
+                metadata = cluster.get("metadata", {}) or {}
+                spec = cluster.get("spec", {}) or {}
+                cloud_config = spec.get("cloudConfig", {}) or {}
+                status = cluster.get("status", {}) or {}
+                return {
+                    "uid": metadata.get("uid"),
+                    "name": metadata.get("name"),
+                    "state": status.get("state"),
+                    "cloud_type": cloud_config.get("type"),
+                    "location": cloud_config.get("region")
+                    or cloud_config.get("location"),
+                }
+
             active_clusters = []
-            continue_token = None
+            next_request_continue = continue_token
 
             while True:
                 request_headers = dict(headers)
-                if continue_token:
-                    request_headers["Continue"] = continue_token
+                if next_request_continue:
+                    request_headers["Continue"] = next_request_continue
 
                 res = await palette_api_request(
                     palette_host=palette_host,
@@ -321,13 +387,39 @@ async def _list_active_clusters(
                     body=payload,
                 )
                 json_data = res.json()
-                active_clusters.extend(json_data.get("items", []))
+                items = json_data.get("items", [])
+                cleaned_items = [
+                    _compact_cluster(item) if compact else item for item in items
+                ]
+                page_continue = json_data.get("listmeta", {}).get("continue")
 
-                continue_token = json_data.get("listmeta", {}).get("continue")
-                if not continue_token:
+                if (
+                    active_clusters
+                    and limit is not None
+                    and (len(active_clusters) + len(cleaned_items)) > limit
+                ):
+                    next_request_continue = page_continue
                     break
 
-            result = {"clusters": {"items": active_clusters}}
+                active_clusters.extend(cleaned_items)
+
+                if not page_continue:
+                    next_request_continue = None
+                    break
+                if limit is not None and len(active_clusters) >= limit:
+                    next_request_continue = page_continue
+                    break
+                next_request_continue = page_continue
+
+            result = {
+                "clusters": {
+                    "items": active_clusters,
+                    "returned_count": len(active_clusters),
+                    "limit": limit,
+                    "next_continue_token": next_request_continue,
+                    "compact": compact,
+                }
+            }
             safe_set_output(span, result)
             safe_set_span_status(span, "OK")
 
@@ -559,11 +651,15 @@ async def gather_or_delete_clusters(
     action: str,
     uid: Optional[str] = None,
     active_only: bool = False,
+    limit: Optional[int] = 25,
+    continue_token: Optional[str] = None,
+    compact: bool = True,
     force_delete: bool = False,
     project_id: Optional[str] = None,
     api_key: Optional[str] = None,
 ) -> MCPResult:
     """Gather information about clusters or delete a cluster in Palette.
+    Results are automatically compacted to avoid oversized responses and improve performance. To retrieve all results, use the pagination continue_token parameter in subsequent calls until no continue_token is returned.
 
     Args:
         action: The operation to perform. Must be one of:
@@ -572,6 +668,9 @@ async def gather_or_delete_clusters(
             - "delete": Delete a cluster (requires uid, requires ALLOW_DANGEROUS_ACTIONS=1)
         uid: The UID of the cluster. Required for "get" and "delete" actions.
         active_only: If True and action="list", only return active clusters. Default is False.
+        limit: Maximum number of clusters to return for list action. Default is 25.
+        continue_token: Continuation token from previous list response to fetch the next page.
+        compact: If True (default), list returns a compact cluster shape to avoid oversized responses. When False, the full cluster object is returned that contains the machine spec, metadata, and status.
         force_delete: If True and action="delete", perform a force delete. Default is False.
         project_id: Optional project ID override.
         api_key: Optional API key override.
@@ -596,6 +695,18 @@ async def gather_or_delete_clusters(
                     "type": "boolean",
                     "description": "If True and action='list', only return active clusters",
                 },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of clusters to return for list action. Default is 25.",
+                },
+                "continue_token": {
+                    "type": "string",
+                    "description": "Continuation token from a previous list response.",
+                },
+                "compact": {
+                    "type": "boolean",
+                    "description": "If True, return a compact list payload for cluster listings. Default is True.",
+                },
                 "force_delete": {
                     "type": "boolean",
                     "description": "If True and action='delete', perform a force delete",
@@ -614,6 +725,9 @@ async def gather_or_delete_clusters(
                 "action": action,
                 "uid": uid,
                 "active_only": active_only,
+                "limit": limit,
+                "continue_token": continue_token,
+                "compact": compact,
                 "force_delete": force_delete,
             },
         )
@@ -646,12 +760,34 @@ async def gather_or_delete_clusters(
             safe_set_span_status(span, "ERROR", error_msg)
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
 
+        if action == "list" and limit is not None and limit <= 0:
+            error_msg = (
+                "Error: The 'limit' parameter must be greater than 0 for list action."
+            )
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {"content": [{"type": "text", "text": error_msg}], "isError": True}
+
         # Route to appropriate helper.
         if action == "list":
             if active_only:
-                result = await _list_active_clusters(ctx, project_id, api_key)
+                result = await _list_active_clusters(
+                    ctx,
+                    project_id,
+                    api_key,
+                    limit=limit,
+                    continue_token=continue_token,
+                    compact=compact,
+                )
             else:
-                result = await _list_clusters(ctx, project_id, api_key)
+                result = await _list_clusters(
+                    ctx,
+                    project_id,
+                    api_key,
+                    limit=limit,
+                    continue_token=continue_token,
+                    compact=compact,
+                )
         elif action == "get":
             result = await _get_cluster_by_uid(ctx, uid, project_id, api_key)
         elif action == "delete":
@@ -823,7 +959,12 @@ async def getKubeconfig(
 
 
 async def _list_cluster_profiles(
-    ctx: Context, project_id: Optional[str] = None, api_key: Optional[str] = None
+    ctx: Context,
+    project_id: Optional[str] = None,
+    api_key: Optional[str] = None,
+    limit: Optional[int] = 25,
+    continue_token: Optional[str] = None,
+    compact: bool = True,
 ) -> MCPResult:
     """Internal helper: Gets all cluster profiles in a project."""
     # Get our custom MCP session context
@@ -867,13 +1008,24 @@ async def _list_cluster_profiles(
         try:
             headers = build_headers(api_key=api_key, project_id=project_id)
 
+            def _compact_cluster_profile(profile: Dict[str, Any]) -> Dict[str, Any]:
+                """Return a lightweight view of a cluster profile."""
+                metadata = profile.get("metadata", {}) or {}
+                spec = profile.get("spec", {}) or {}
+                return {
+                    "uid": metadata.get("uid"),
+                    "name": metadata.get("name"),
+                    "version": spec.get("version"),
+                    "tags": extract_cluster_profile_tags(profile),
+                }
+
             all_profiles = []
-            continue_token = None
+            next_request_continue = continue_token
 
             while True:
                 request_headers = dict(headers)
-                if continue_token:
-                    request_headers["Continue"] = continue_token
+                if next_request_continue:
+                    request_headers["Continue"] = next_request_continue
 
                 res = await palette_api_request(
                     palette_host=palette_host,
@@ -882,34 +1034,64 @@ async def _list_cluster_profiles(
                     headers=request_headers,
                 )
                 json_data = res.json()
-                all_profiles.extend(json_data.get("items", []))
+                items = json_data.get("items", [])
 
-                continue_token = json_data.get("listmeta", {}).get("continue")
-                if not continue_token:
+                # Clean up pack values from cluster profiles.
+                cleaned_items = []
+                for profile in items:
+                    if "spec" in profile:
+                        # Handle published packs.
+                        if (
+                            "published" in profile["spec"]
+                            and "packs" in profile["spec"]["published"]
+                        ):
+                            for pack in profile["spec"]["published"]["packs"]:
+                                if "values" in pack:
+                                    del pack["values"]
+
+                        # Handle draft packs.
+                        if (
+                            "draft" in profile["spec"]
+                            and "packs" in profile["spec"]["draft"]
+                        ):
+                            for pack in profile["spec"]["draft"]["packs"]:
+                                if "values" in pack:
+                                    del pack["values"]
+
+                    cleaned_items.append(
+                        _compact_cluster_profile(profile) if compact else profile
+                    )
+
+                page_continue = json_data.get("listmeta", {}).get("continue")
+
+                # Keep page boundaries intact for stable pagination.
+                if (
+                    all_profiles
+                    and limit is not None
+                    and (len(all_profiles) + len(cleaned_items)) > limit
+                ):
+                    next_request_continue = page_continue
                     break
 
-            # Clean up pack values from cluster profiles
-            for profile in all_profiles:
-                if "spec" in profile:
-                    # Handle published packs
-                    if (
-                        "published" in profile["spec"]
-                        and "packs" in profile["spec"]["published"]
-                    ):
-                        for pack in profile["spec"]["published"]["packs"]:
-                            if "values" in pack:
-                                del pack["values"]
+                all_profiles.extend(cleaned_items)
 
-                    # Handle draft packs
-                    if (
-                        "draft" in profile["spec"]
-                        and "packs" in profile["spec"]["draft"]
-                    ):
-                        for pack in profile["spec"]["draft"]["packs"]:
-                            if "values" in pack:
-                                del pack["values"]
+                if not page_continue:
+                    next_request_continue = None
+                    break
+                if limit is not None and len(all_profiles) >= limit:
+                    next_request_continue = page_continue
+                    break
+                next_request_continue = page_continue
 
-            result = {"clusterProfiles": {"items": all_profiles}}
+            result = {
+                "clusterProfiles": {
+                    "items": all_profiles,
+                    "returned_count": len(all_profiles),
+                    "limit": limit,
+                    "next_continue_token": next_request_continue,
+                    "compact": compact,
+                }
+            }
             safe_set_output(span, result)
             safe_set_span_status(span, "OK")
 
@@ -1127,10 +1309,14 @@ async def gather_or_delete_clusterprofiles(
     ctx: Context,
     action: str,
     uid: Optional[str] = None,
+    limit: Optional[int] = 25,
+    continue_token: Optional[str] = None,
+    compact: bool = True,
     project_id: Optional[str] = None,
     api_key: Optional[str] = None,
 ) -> MCPResult:
     """Gather information about cluster profiles in Palette or delete a cluster profile in Palette.
+    Results are automatically compacted to avoid oversized responses and improve performance. To retrieve all results, use the pagination continue_token parameter in subsequent calls until no continue_token is returned.
 
     Args:
         action: The operation to perform. Must be one of:
@@ -1138,6 +1324,9 @@ async def gather_or_delete_clusterprofiles(
             - "get": Get detailed information about a specific cluster profile (requires uid)
             - "delete": Delete a cluster profile (requires uid, requires ALLOW_DANGEROUS_ACTIONS=1)
         uid: The UID of the cluster profile. Required for "get" and "delete" actions.
+        limit: Maximum number of cluster profiles to return for list action. Default is 25.
+        continue_token: Continuation token from previous list response to fetch the next page.
+        compact: If True (default), list returns a compact cluster profile object to avoid oversized responses. When False, the full clusterprofile object is returned that contains the cluster profile spec, packs, versions, metadata, and status.
         project_id: Optional project ID override.
         api_key: Optional API key override.
     """
@@ -1157,6 +1346,18 @@ async def gather_or_delete_clusterprofiles(
                     "type": "string",
                     "description": "The UID of the cluster profile (required for get/delete)",
                 },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of profiles to return for list action. Default is 25.",
+                },
+                "continue_token": {
+                    "type": "string",
+                    "description": "Continuation token from a previous list response.",
+                },
+                "compact": {
+                    "type": "boolean",
+                    "description": "If True, return a compact list payload for profile listings. Default is True.",
+                },
                 "project_id": {
                     "type": "string",
                     "description": "The ID of the project (optional)",
@@ -1165,7 +1366,16 @@ async def gather_or_delete_clusterprofiles(
             },
         )
 
-        safe_set_input(span, {"action": action, "uid": uid})
+        safe_set_input(
+            span,
+            {
+                "action": action,
+                "uid": uid,
+                "limit": limit,
+                "continue_token": continue_token,
+                "compact": compact,
+            },
+        )
 
         # Validate action - only get, list, delete are allowed.
         if action not in ["list", "get", "delete"]:
@@ -1195,9 +1405,24 @@ async def gather_or_delete_clusterprofiles(
             safe_set_span_status(span, "ERROR", error_msg)
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
 
+        if action == "list" and limit is not None and limit <= 0:
+            error_msg = (
+                "Error: The 'limit' parameter must be greater than 0 for list action."
+            )
+            safe_set_output(span, {"error": error_msg})
+            safe_set_span_status(span, "ERROR", error_msg)
+            return {"content": [{"type": "text", "text": error_msg}], "isError": True}
+
         # Route to appropriate helper.
         if action == "list":
-            result = await _list_cluster_profiles(ctx, project_id, api_key)
+            result = await _list_cluster_profiles(
+                ctx,
+                project_id,
+                api_key,
+                limit=limit,
+                continue_token=continue_token,
+                compact=compact,
+            )
         elif action == "get":
             result = await _get_cluster_profile_by_uid(ctx, uid, project_id, api_key)
         elif action == "delete":
@@ -1356,7 +1581,11 @@ async def manage_resource_tags(
                     # Reuse the same list behavior as gather_or_delete_clusterprofiles
                     # so tag extraction reflects the currently working MCP tool.
                     list_result = await _list_cluster_profiles(
-                        ctx, project_id=project_id, api_key=api_key
+                        ctx,
+                        project_id=project_id,
+                        api_key=api_key,
+                        limit=None,
+                        compact=True,
                     )
                     if list_result.get("isError", False):
                         return list_result
@@ -1373,7 +1602,12 @@ async def manage_resource_tags(
 
                     extracted_tags: set[str] = set()
                     for profile in all_profiles:
-                        extracted_tags.update(extract_cluster_profile_tags(profile))
+                        if "tags" in profile and isinstance(profile["tags"], list):
+                            extracted_tags.update(
+                                tag for tag in profile["tags"] if isinstance(tag, str)
+                            )
+                        else:
+                            extracted_tags.update(extract_cluster_profile_tags(profile))
 
                     result = {
                         "action": action,
