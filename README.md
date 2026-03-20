@@ -18,7 +18,7 @@ The Palette MCP server provides several tools for interacting with Palette. Seve
 | `gather_or_delete_clusters`        | Gather information about clusters or delete a cluster in Palette.                                                                                  | Yes                        | Delete            |
 | `gather_or_delete_clusterprofiles` | Gather information about cluster profiles or delete a cluster profile in Palette.                                                                  | Yes                        | Delete            |
 | `getKubeconfig`                    | Download the kubeconfig or admin kubeconfig for a cluster.                                                                                         | No                         | None              |
-| `manage_resource_tags`             | Manage tag lifecycle operations across the following Palette resources: spectroclusters, clusterprofiles, clusterTemplates, edgehosts, and policy. | Yes                        | Delete            |
+| `manage_resource_tags`             | Manage tag lifecycle operations across the following Palette resources: clusters, cluster profiles, cluster templates, edge hosts, and policy. | Yes                        | Delete            |
 
 The list above will continue to grow as we add more tools to the Palette MCP server.
 
