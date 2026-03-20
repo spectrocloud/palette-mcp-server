@@ -43,9 +43,3 @@ changelog:
 report_sizes: true
 release:
   disable: false
-  footer: >-
-    **Full Changelog**: https://github.com/spectro-cloud/palette-mcp-server/compare/{{ .PreviousTag }}...{{ .Tag }}
-
-    ---
-
-    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
