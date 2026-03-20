@@ -48,10 +48,22 @@ async def getKubeconfig(
             name="getKubeconfig",
             description="Gets the kubeconfig or admin kubeconfig file for a specific cluster. To use the admin kubeconfig, set admin_config to True.",
             parameters={
-                "cluster_uid": {"type": "string", "description": "The UID of the cluster to get the kubeconfig for"},
-                "admin_config": {"type": "boolean", "description": "If True, retrieves the admin kubeconfig. Default is False."},
-                "project_id": {"type": "string", "description": "The ID of the project to query (optional)"},
-                "api_key": {"type": "string", "description": "The API key for the Palette API (optional)"},
+                "cluster_uid": {
+                    "type": "string",
+                    "description": "The UID of the cluster to get the kubeconfig for",
+                },
+                "admin_config": {
+                    "type": "boolean",
+                    "description": "If True, retrieves the admin kubeconfig. Default is False.",
+                },
+                "project_id": {
+                    "type": "string",
+                    "description": "The ID of the project to query (optional)",
+                },
+                "api_key": {
+                    "type": "string",
+                    "description": "The API key for the Palette API (optional)",
+                },
             },
         )
         safe_set_input(
@@ -68,7 +80,9 @@ async def getKubeconfig(
 
         try:
             headers = build_headers(
-                api_key=api_key, project_id=project_id, accept="application/octet-stream"
+                api_key=api_key,
+                project_id=project_id,
+                accept="application/octet-stream",
             )
             url = (
                 f"/v1/spectroclusters/{cluster_uid}/assets/adminKubeconfig"
@@ -105,7 +119,10 @@ async def getKubeconfig(
 
             safe_set_output(
                 span,
-                {"status": "Kubeconfig retrieved successfully", "admin_config": actual_admin_config},
+                {
+                    "status": "Kubeconfig retrieved successfully",
+                    "admin_config": actual_admin_config,
+                },
             )
             config_type = "Admin kubeconfig" if actual_admin_config else "Kubeconfig"
             return {
@@ -126,7 +143,10 @@ async def getKubeconfig(
             error_message = f"Error during API call: {str(e)}"
             safe_set_output(span, {"error": error_message})
             safe_set_span_status(span, "ERROR", str(e))
-            return {"content": [{"type": "text", "text": error_message}], "isError": True}
+            return {
+                "content": [{"type": "text", "text": error_message}],
+                "isError": True,
+            }
 
 
 __all__ = ["getKubeconfig"]

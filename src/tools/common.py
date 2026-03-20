@@ -55,5 +55,3 @@ def mask_sensitive_data(data: Dict[str, Any]) -> Dict[str, Any]:
             f"{'*' * (len(api_key) - 8)}{api_key[-8:]}" if len(api_key) > 8 else api_key
         )
     return masked
-
-

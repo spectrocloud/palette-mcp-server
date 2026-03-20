@@ -353,9 +353,18 @@ async def _get_cluster_by_uid(
             name="_get_cluster_by_uid",
             description="Queries Palette API for detailed information about a specific cluster",
             parameters={
-                "cluster_uid": {"type": "string", "description": "The UID of the cluster to query"},
-                "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
-                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"},
+                "cluster_uid": {
+                    "type": "string",
+                    "description": "The UID of the cluster to query",
+                },
+                "project_id": {
+                    "type": "string",
+                    "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)",
+                },
+                "api_key": {
+                    "type": "string",
+                    "description": "The API key for the Palette API (optional, uses default if not provided)",
+                },
             },
         )
         safe_set_input(span, mask_sensitive_data({"api_key": api_key}))
@@ -386,7 +395,10 @@ async def _get_cluster_by_uid(
             error_message = f"Error during API call: {str(e)}"
             safe_set_output(span, {"error": error_message})
             safe_set_span_status(span, "ERROR", str(e))
-            return {"content": [{"type": "text", "text": error_message}], "isError": True}
+            return {
+                "content": [{"type": "text", "text": error_message}],
+                "isError": True,
+            }
 
 
 async def _delete_cluster_by_uid(
@@ -416,10 +428,22 @@ async def _delete_cluster_by_uid(
             name="_delete_cluster_by_uid",
             description="Deletes a specific cluster from Palette using its UID",
             parameters={
-                "cluster_uid": {"type": "string", "description": "The UID of the cluster to delete"},
-                "project_id": {"type": "string", "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)"},
-                "api_key": {"type": "string", "description": "The API key for the Palette API (optional, uses default if not provided)"},
-                "force_delete": {"type": "boolean", "description": "Whether to force delete the cluster (optional, defaults to false)"},
+                "cluster_uid": {
+                    "type": "string",
+                    "description": "The UID of the cluster to delete",
+                },
+                "project_id": {
+                    "type": "string",
+                    "description": "The ID of the project to query (optional, omits the ProjectUid header if not provided)",
+                },
+                "api_key": {
+                    "type": "string",
+                    "description": "The API key for the Palette API (optional, uses default if not provided)",
+                },
+                "force_delete": {
+                    "type": "boolean",
+                    "description": "Whether to force delete the cluster (optional, defaults to false)",
+                },
             },
         )
         safe_set_input(
@@ -470,7 +494,10 @@ async def _delete_cluster_by_uid(
             error_message = f"Error during API call: {str(e)}"
             safe_set_output(span, {"error": error_message})
             safe_set_span_status(span, "ERROR", str(e))
-            return {"content": [{"type": "text", "text": error_message}], "isError": True}
+            return {
+                "content": [{"type": "text", "text": error_message}],
+                "isError": True,
+            }
 
 
 async def gather_or_delete_clusters(
@@ -492,14 +519,38 @@ async def gather_or_delete_clusters(
             name="gather_or_delete_clusters",
             description="Gather information about clusters or delete a cluster in Palette",
             parameters={
-                "action": {"type": "string", "description": "The operation: 'list', 'get', or 'delete'"},
-                "uid": {"type": "string", "description": "The UID of the cluster (required for get/delete)"},
-                "active_only": {"type": "boolean", "description": "If True and action='list', only return active clusters"},
-                "limit": {"type": "integer", "description": "Maximum number of clusters to return for list action. Default is 25."},
-                "continue_token": {"type": "string", "description": "Continuation token from a previous list response."},
-                "compact": {"type": "boolean", "description": "If True, return a compact list payload for cluster listings. Default is True."},
-                "force_delete": {"type": "boolean", "description": "If True and action='delete', perform a force delete"},
-                "project_id": {"type": "string", "description": "The ID of the project (optional)"},
+                "action": {
+                    "type": "string",
+                    "description": "The operation: 'list', 'get', or 'delete'",
+                },
+                "uid": {
+                    "type": "string",
+                    "description": "The UID of the cluster (required for get/delete)",
+                },
+                "active_only": {
+                    "type": "boolean",
+                    "description": "If True and action='list', only return active clusters",
+                },
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of clusters to return for list action. Default is 25.",
+                },
+                "continue_token": {
+                    "type": "string",
+                    "description": "Continuation token from a previous list response.",
+                },
+                "compact": {
+                    "type": "boolean",
+                    "description": "If True, return a compact list payload for cluster listings. Default is True.",
+                },
+                "force_delete": {
+                    "type": "boolean",
+                    "description": "If True and action='delete', perform a force delete",
+                },
+                "project_id": {
+                    "type": "string",
+                    "description": "The ID of the project (optional)",
+                },
                 "api_key": {"type": "string", "description": "The API key (optional)"},
             },
         )
@@ -537,7 +588,9 @@ async def gather_or_delete_clusters(
             safe_set_span_status(span, "ERROR", error_msg)
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
         if action == "list" and limit is not None and limit <= 0:
-            error_msg = "Error: The 'limit' parameter must be greater than 0 for list action."
+            error_msg = (
+                "Error: The 'limit' parameter must be greater than 0 for list action."
+            )
             safe_set_output(span, {"error": error_msg})
             safe_set_span_status(span, "ERROR", error_msg)
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
@@ -568,7 +621,9 @@ async def gather_or_delete_clusters(
                 ctx, uid, project_id, api_key, force_delete
             )
 
-        safe_set_span_status(span, "OK" if not result.get("isError", False) else "ERROR")
+        safe_set_span_status(
+            span, "OK" if not result.get("isError", False) else "ERROR"
+        )
         return result
 
 

@@ -187,12 +187,30 @@ async def manage_resource_tags(
             name="manage_resource_tags",
             description="Manage tag lifecycle in Palette, including list/get/create/delete tag actions",
             parameters={
-                "action": {"type": "string", "description": "One of: list, get, create, delete"},
-                "resource_type": {"type": "string", "description": "Resource type for tag operations. One of: spectroclusters, clusterprofiles, clusterTemplates, edgehosts, policy (alias: spcPolicies)"},
-                "uid": {"type": "string", "description": "Resource uid for get, create, and delete"},
-                "policy_type": {"type": "string", "description": "Optional policy family for policy/spcPolicies actions. If omitted, the tool tries maintenance."},
-                "tags": {"type": "array", "description": "Tags used by create and delete"},
-                "project_id": {"type": "string", "description": "The project ID override"},
+                "action": {
+                    "type": "string",
+                    "description": "One of: list, get, create, delete",
+                },
+                "resource_type": {
+                    "type": "string",
+                    "description": "Resource type for tag operations. One of: spectroclusters, clusterprofiles, clusterTemplates, edgehosts, policy (alias: spcPolicies)",
+                },
+                "uid": {
+                    "type": "string",
+                    "description": "Resource uid for get, create, and delete",
+                },
+                "policy_type": {
+                    "type": "string",
+                    "description": "Optional policy family for policy/spcPolicies actions. If omitted, the tool tries maintenance.",
+                },
+                "tags": {
+                    "type": "array",
+                    "description": "Tags used by create and delete",
+                },
+                "project_id": {
+                    "type": "string",
+                    "description": "The project ID override",
+                },
                 "api_key": {"type": "string", "description": "The API key override"},
             },
         )
@@ -217,12 +235,16 @@ async def manage_resource_tags(
             safe_set_span_status(span, "ERROR", error_msg)
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
         if action == "list" and not resource_type:
-            error_msg = f"Error: The '{action}' action requires 'resource_type' to be provided."
+            error_msg = (
+                f"Error: The '{action}' action requires 'resource_type' to be provided."
+            )
             safe_set_output(span, {"error": error_msg})
             safe_set_span_status(span, "ERROR", error_msg)
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
         if action in {"get", "create", "delete"} and (not resource_type or not uid):
-            error_msg = f"Error: The '{action}' action requires both 'resource_type' and 'uid'."
+            error_msg = (
+                f"Error: The '{action}' action requires both 'resource_type' and 'uid'."
+            )
             safe_set_output(span, {"error": error_msg})
             safe_set_span_status(span, "ERROR", error_msg)
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
@@ -241,13 +263,19 @@ async def manage_resource_tags(
             safe_set_span_status(span, "ERROR", error_msg)
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
 
-        canonical_resource_type = "spcPolicies" if resource_type == "policy" else resource_type
+        canonical_resource_type = (
+            "spcPolicies" if resource_type == "policy" else resource_type
+        )
         try:
             if action == "list":
                 headers = build_headers(api_key=api_key, project_id=project_id)
                 if canonical_resource_type == "clusterprofiles":
                     list_result = await _list_cluster_profiles(
-                        ctx, project_id=project_id, api_key=api_key, limit=None, compact=True
+                        ctx,
+                        project_id=project_id,
+                        api_key=api_key,
+                        limit=None,
+                        compact=True,
                     )
                     if list_result.get("isError", False):
                         return list_result
@@ -256,7 +284,11 @@ async def manage_resource_tags(
                         if list_result.get("content")
                         else "{}"
                     )
-                    all_profiles = json.loads(list_text).get("clusterProfiles", {}).get("items", [])
+                    all_profiles = (
+                        json.loads(list_text)
+                        .get("clusterProfiles", {})
+                        .get("items", [])
+                    )
                     extracted_tags: set[str] = set()
                     for profile in all_profiles:
                         if "tags" in profile and isinstance(profile["tags"], list):
@@ -306,12 +338,18 @@ async def manage_resource_tags(
                 get_response = None
                 if canonical_resource_type == "spcPolicies":
                     resolved_policy_type = (policy_type or "").strip()
-                    candidate_policy_types = [resolved_policy_type] if resolved_policy_type else ["maintenance"]
+                    candidate_policy_types = (
+                        [resolved_policy_type]
+                        if resolved_policy_type
+                        else ["maintenance"]
+                    )
                     for candidate in candidate_policy_types:
                         probe = await palette_api_request(
                             palette_host=palette_host,
                             method=endpoint_cfg["get_method"],
-                            path=endpoint_cfg["get_path"].format(uid=uid, policy_type=candidate),
+                            path=endpoint_cfg["get_path"].format(
+                                uid=uid, policy_type=candidate
+                            ),
                             headers=get_headers,
                             params=get_params,
                             allowed_status_codes={404},
@@ -349,7 +387,11 @@ async def manage_resource_tags(
                     current_tags, _ = merge_tags(metadata.get("labels"), [], "add")
                 elif canonical_resource_type == "clusterprofiles":
                     current_tags = extract_cluster_profile_tags(resource_doc)
-                elif canonical_resource_type in {"clusterTemplates", "spcPolicies", "edgehosts"}:
+                elif canonical_resource_type in {
+                    "clusterTemplates",
+                    "spcPolicies",
+                    "edgehosts",
+                }:
                     current_tags, _ = merge_tags(metadata.get("labels"), [], "add")
                 else:
                     current_tags, _ = merge_tags(metadata.get("tags"), [], "add")
@@ -366,12 +408,16 @@ async def manage_resource_tags(
                     safe_set_output(span, result)
                     safe_set_span_status(span, "OK")
                     return {
-                        "content": [{"type": "text", "text": json.dumps(result, indent=2)}],
+                        "content": [
+                            {"type": "text", "text": json.dumps(result, indent=2)}
+                        ],
                         "isError": False,
                     }
 
                 before_tags, after_tags = merge_tags(
-                    current_tags if canonical_resource_type != "other" else metadata.get("tags"),
+                    current_tags
+                    if canonical_resource_type != "other"
+                    else metadata.get("tags"),
                     tags or [],
                     "add" if action == "create" else "remove",
                 )
@@ -383,11 +429,19 @@ async def manage_resource_tags(
                     "tags": after_tags,
                 }
 
-                if canonical_resource_type in {"spectroclusters", "clusterprofiles", "clusterTemplates", "spcPolicies", "edgehosts"}:
+                if canonical_resource_type in {
+                    "spectroclusters",
+                    "clusterprofiles",
+                    "clusterTemplates",
+                    "spcPolicies",
+                    "edgehosts",
+                }:
                     existing_labels = metadata.get("labels", {}) or {}
                     updated_labels = dict(existing_labels)
                     previous_tag_keys = {
-                        _tag_key(tag_value) for tag_value in before_tags if _tag_key(tag_value)
+                        _tag_key(tag_value)
+                        for tag_value in before_tags
+                        if _tag_key(tag_value)
                     }
                     for key in previous_tag_keys:
                         updated_labels.pop(key, None)
@@ -399,7 +453,10 @@ async def manage_resource_tags(
                             val = val.strip()
                             if key and val:
                                 updated_labels[key] = val
-                                if canonical_resource_type == "clusterprofiles" and val != "spectro__tag":
+                                if (
+                                    canonical_resource_type == "clusterprofiles"
+                                    and val != "spectro__tag"
+                                ):
                                     value_backed_tags.append(f"{key}:{val}")
                             elif key:
                                 updated_labels[key] = "spectro__tag"
@@ -460,7 +517,10 @@ async def manage_resource_tags(
             error_message = f"Error during API call: {str(e)}"
             safe_set_output(span, {"error": error_message})
             safe_set_span_status(span, "ERROR", str(e))
-            return {"content": [{"type": "text", "text": error_message}], "isError": True}
+            return {
+                "content": [{"type": "text", "text": error_message}],
+                "isError": True,
+            }
 
 
 __all__ = ["manage_resource_tags"]
