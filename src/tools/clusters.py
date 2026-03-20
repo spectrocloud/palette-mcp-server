@@ -381,7 +381,6 @@ async def _get_cluster_by_uid(
                     "includeTags": "true",
                     "resolvePackValues": "true",
                     "includePackMeta": "false",
-                    "profileType": "<string>",
                     "includeNonSpectroLabels": "false",
                 },
             )

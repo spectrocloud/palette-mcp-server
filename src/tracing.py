@@ -93,6 +93,9 @@ def safe_set_span_status(span, status_code: str, description: str = None):
 
 def set_tool_metadata(span, name: str, description: str, parameters: dict):
     """Set tool metadata with graceful error handling."""
+    if not span:
+        return
+
     try:
         span.set_tool(name=name, description=description, parameters=parameters)
     except (TypeError, AttributeError):
@@ -103,6 +106,9 @@ def set_span_data(
     span, input_data: dict = None, output_data: dict = None, status: tuple = None
 ):
     """Set span input/output/status with graceful error handling."""
+    if not span:
+        return
+
     try:
         if input_data is not None:
             span.set_input(json.dumps(input_data))
