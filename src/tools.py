@@ -210,6 +210,7 @@ async def _list_clusters(
                     and limit is not None
                     and (len(all_clusters) + len(cleaned_items)) > limit
                 ):
+                    next_request_continue = page_continue
                     break
 
                 all_clusters.extend(cleaned_items)
@@ -397,6 +398,7 @@ async def _list_active_clusters(
                     and limit is not None
                     and (len(active_clusters) + len(cleaned_items)) > limit
                 ):
+                    next_request_continue = page_continue
                     break
 
                 active_clusters.extend(cleaned_items)
@@ -1068,6 +1070,7 @@ async def _list_cluster_profiles(
                     and limit is not None
                     and (len(all_profiles) + len(cleaned_items)) > limit
                 ):
+                    next_request_continue = page_continue
                     break
 
                 all_profiles.extend(cleaned_items)
@@ -1313,7 +1316,7 @@ async def gather_or_delete_clusterprofiles(
     api_key: Optional[str] = None,
 ) -> MCPResult:
     """Gather information about cluster profiles in Palette or delete a cluster profile in Palette.
-    esults are automatically compacted to avoid oversized responses and improve performance. To retrieve all results, use the pagination continue_token parameter in subsequent calls until no continue_token is returned.
+    Results are automatically compacted to avoid oversized responses and improve performance. To retrieve all results, use the pagination continue_token parameter in subsequent calls until no continue_token is returned.
 
     Args:
         action: The operation to perform. Must be one of:
