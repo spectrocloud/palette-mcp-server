@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
-from typing import Any, Dict, Optional
+from typing import Annotated, Any, Dict, Optional
 
 from fastmcp import Context
+from pydantic import Field
 
 from helpers import (
     build_headers,
@@ -78,15 +79,18 @@ async def _list_cluster_profiles(
             all_profiles = []
             next_request_continue = continue_token
             while True:
-                request_headers = dict(headers)
+                query_params: Dict[str, str] = {}
+                if limit is not None:
+                    query_params["limit"] = str(limit)
                 if next_request_continue:
-                    request_headers["Continue"] = next_request_continue
+                    query_params["continue"] = next_request_continue
 
                 res = await palette_api_request(
                     palette_host=palette_host,
                     method="GET",
                     path="/v1/clusterprofiles/",
-                    headers=request_headers,
+                    headers=headers,
+                    params=query_params,
                 )
                 json_data = res.json()
                 items = json_data.get("items", [])
@@ -115,10 +119,11 @@ async def _list_cluster_profiles(
 
                 page_continue = json_data.get("listmeta", {}).get("continue")
                 if (
-                    all_profiles
-                    and limit is not None
+                    limit is not None
                     and (len(all_profiles) + len(cleaned_items)) > limit
                 ):
+                    remaining = limit - len(all_profiles)
+                    all_profiles.extend(cleaned_items[:remaining])
                     next_request_continue = page_continue
                     break
 
@@ -319,14 +324,39 @@ async def _delete_cluster_profile_by_uid(
 
 async def gather_or_delete_clusterprofiles(
     ctx: Context,
-    action: str,
-    uid: Optional[str] = None,
-    limit: Optional[int] = 25,
-    continue_token: Optional[str] = None,
-    compact: bool = True,
-    project_id: Optional[str] = None,
-    api_key: Optional[str] = None,
+    action: Annotated[
+        str, Field(description="The operation: 'list', 'get', or 'delete'. Required.")
+    ],
+    uid: Annotated[
+        str,
+        Field(
+            description="The UID of the cluster profile. Required for get and delete."
+        ),
+    ] = None,
+    limit: Annotated[
+        int,
+        Field(
+            description="Maximum number of profiles to return for list action. Default is 25. Optional."
+        ),
+    ] = 25,
+    continue_token: Annotated[
+        str,
+        Field(
+            description="Continuation token from a previous list response. Optional."
+        ),
+    ] = None,
+    compact: Annotated[
+        bool,
+        Field(
+            description="If True, return a compact list payload for profile listings. Default is True. Optional."
+        ),
+    ] = True,
+    project_id: Annotated[
+        str, Field(description="The ID of the project. Optional.")
+    ] = None,
+    api_key: Annotated[str, Field(description="The API key. Optional.")] = None,
 ) -> MCPResult:
+    """Gather information about cluster profiles or delete a cluster profile in Palette. Allowed actions are list, get, and delete. Use list to retrieve all cluster profiles, get to retrieve a specific cluster profile by UID, and delete to remove a cluster profile by UID."""
     session_ctx = get_session_context(ctx)
     with create_span("gather_or_delete_clusterprofiles") as span:
         safe_set_tool(

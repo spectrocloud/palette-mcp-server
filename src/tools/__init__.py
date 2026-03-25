@@ -13,7 +13,7 @@ from tools.common import (
     safe_set_span_status,
 )
 from tools.kubeconfig import getKubeconfig
-from tools.tags import manage_resource_tags
+from tools.tags import search_and_manage_resource_tags
 
 __all__ = [
     "Cluster",
@@ -24,7 +24,7 @@ __all__ = [
     "gather_or_delete_clusterprofiles",
     "getKubeconfig",
     "get_session_context",
-    "manage_resource_tags",
+    "search_and_manage_resource_tags",
     "mask_sensitive_data",
     "safe_set_span_status",
 ]

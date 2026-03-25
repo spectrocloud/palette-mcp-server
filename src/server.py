@@ -10,7 +10,7 @@ from tools import (
     gather_or_delete_clusters,
     gather_or_delete_clusterprofiles,
     getKubeconfig,
-    manage_resource_tags,
+    search_and_manage_resource_tags,
 )
 
 # Use FastMCP's logging utility for server-side logging
@@ -22,7 +22,7 @@ logger.info(f"Starting Palette MCP Server {version}")
 palette_host = os.environ.get("SPECTROCLOUD_HOST")
 palette_apikey = os.environ.get("SPECTROCLOUD_APIKEY")
 default_project_id = os.environ.get("SPECTROCLOUD_DEFAULT_PROJECT_ID") or ""
-allow_dangerous_actions = os.environ.get("ALLOW_DANGEROUS_ACTIONS") == "1"
+allow_dangerous_actions = os.environ.get("ALLOW_DANGEROUS_ACTIONS", "").strip() == "1"
 if allow_dangerous_actions:
     logger.info(
         "⚠️ ALLOW_DANGEROUS_ACTIONS environment variable enabled. This allows dangerous actions to be performed."
@@ -77,7 +77,7 @@ def create_mcp() -> FastMCP:
         gather_or_delete_clusters,
         gather_or_delete_clusterprofiles,
         getKubeconfig,
-        manage_resource_tags,
+        search_and_manage_resource_tags,
     ]
 
     # Only functions that are considered dangerous by design are loaded here. If an action contains a dangerous method it's not included here.
