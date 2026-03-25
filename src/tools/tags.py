@@ -185,7 +185,7 @@ async def manage_resource_tags(
         safe_set_tool(
             span,
             name="manage_resource_tags",
-            description="Manage tag lifecycle in Palette, including list/get/create/delete tag actions",
+            description="Use this tool to manage and search for tags in Palette. Allowed actions are list, get, create, and delete. A type is required for all actions. Supported types are spectroclusters, clusterprofiles, clusterTemplates, edgehosts, and policy. You need the unique identifier (uid) of the resource to perform get, create, and delete actions. For list, you don't need a uid.",
             parameters={
                 "action": {
                     "type": "string",
@@ -305,7 +305,7 @@ async def manage_resource_tags(
                 else:
                     if canonical_resource_type not in TAG_LIST_ENDPOINTS:
                         raise ValueError(
-                            f"Error: Unsupported resource_type '{resource_type}' for list."
+                            f"Error: Unsupported resource_type '{resource_type}' for list. Supported types are spectroclusters, clusterprofiles, clusterTemplates, edgehosts, and policy."
                         )
                     response = await palette_api_request(
                         palette_host=palette_host,
@@ -322,7 +322,7 @@ async def manage_resource_tags(
             else:
                 if canonical_resource_type not in TAG_UPDATE_ENDPOINTS:
                     raise ValueError(
-                        f"Error: Unsupported resource_type '{resource_type}' for {action}."
+                        f"Error: Unsupported resource_type '{resource_type}' for {action}. Supported types are spectroclusters, clusterprofiles, clusterTemplates, edgehosts, and policy."
                     )
                 endpoint_cfg = TAG_UPDATE_ENDPOINTS[canonical_resource_type]
                 path_kwargs: Dict[str, Any] = {"uid": uid}

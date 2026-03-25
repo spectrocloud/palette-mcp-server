@@ -78,15 +78,18 @@ async def _list_cluster_profiles(
             all_profiles = []
             next_request_continue = continue_token
             while True:
-                request_headers = dict(headers)
+                query_params: Dict[str, str] = {}
+                if limit is not None:
+                    query_params["limit"] = str(limit)
                 if next_request_continue:
-                    request_headers["Continue"] = next_request_continue
+                    query_params["continue"] = next_request_continue
 
                 res = await palette_api_request(
                     palette_host=palette_host,
                     method="GET",
                     path="/v1/clusterprofiles/",
-                    headers=request_headers,
+                    headers=headers,
+                    params=query_params,
                 )
                 json_data = res.json()
                 items = json_data.get("items", [])
@@ -114,11 +117,9 @@ async def _list_cluster_profiles(
                     )
 
                 page_continue = json_data.get("listmeta", {}).get("continue")
-                if (
-                    all_profiles
-                    and limit is not None
-                    and (len(all_profiles) + len(cleaned_items)) > limit
-                ):
+                if limit is not None and (len(all_profiles) + len(cleaned_items)) > limit:
+                    remaining = limit - len(all_profiles)
+                    all_profiles.extend(cleaned_items[:remaining])
                     next_request_continue = page_continue
                     break
 

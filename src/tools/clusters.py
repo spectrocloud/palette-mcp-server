@@ -82,15 +82,18 @@ async def _list_clusters(
             all_clusters = []
             next_request_continue = continue_token
             while True:
-                request_headers = dict(headers)
+                query_params: Dict[str, str] = {}
+                if limit is not None:
+                    query_params["limit"] = str(limit)
                 if next_request_continue:
-                    request_headers["Continue"] = next_request_continue
+                    query_params["continue"] = next_request_continue
 
                 res = await palette_api_request(
                     palette_host=palette_host,
                     method="GET",
                     path="/v1/spectroclusters/",
-                    headers=request_headers,
+                    headers=headers,
+                    params=query_params,
                 )
                 json_data = res.json()
                 items = json_data.get("items") or []
@@ -109,11 +112,9 @@ async def _list_clusters(
                     )
 
                 page_continue = json_data.get("listmeta", {}).get("continue")
-                if (
-                    all_clusters
-                    and limit is not None
-                    and (len(all_clusters) + len(cleaned_items)) > limit
-                ):
+                if limit is not None and (len(all_clusters) + len(cleaned_items)) > limit:
+                    remaining = limit - len(all_clusters)
+                    all_clusters.extend(cleaned_items[:remaining])
                     next_request_continue = page_continue
                     break
 
@@ -268,15 +269,18 @@ async def _list_active_clusters(
             active_clusters = []
             next_request_continue = continue_token
             while True:
-                request_headers = dict(headers)
+                query_params: Dict[str, str] = {}
+                if limit is not None:
+                    query_params["limit"] = str(limit)
                 if next_request_continue:
-                    request_headers["Continue"] = next_request_continue
+                    query_params["continue"] = next_request_continue
 
                 res = await palette_api_request(
                     palette_host=palette_host,
                     method="POST",
                     path="/v1/dashboard/spectroclusters/search",
-                    headers=request_headers,
+                    headers=headers,
+                    params=query_params,
                     body=payload,
                 )
                 json_data = res.json()
@@ -285,11 +289,9 @@ async def _list_active_clusters(
                     _compact_cluster(item) if compact else item for item in items
                 ]
                 page_continue = json_data.get("listmeta", {}).get("continue")
-                if (
-                    active_clusters
-                    and limit is not None
-                    and (len(active_clusters) + len(cleaned_items)) > limit
-                ):
+                if limit is not None and (len(active_clusters) + len(cleaned_items)) > limit:
+                    remaining = limit - len(active_clusters)
+                    active_clusters.extend(cleaned_items[:remaining])
                     next_request_continue = page_continue
                     break
 
