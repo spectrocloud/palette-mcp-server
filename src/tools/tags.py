@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List
 
 from fastmcp import Context
+from pydantic import Field
 
 from helpers import (
     build_headers,
@@ -156,16 +157,40 @@ def merge_tags(
     return before, after
 
 
-async def manage_resource_tags(
+async def search_and_manage_resource_tags(
     ctx: Context,
-    action: str,
-    resource_type: Optional[str] = None,
-    uid: Optional[str] = None,
-    policy_type: Optional[str] = None,
-    tags: Optional[List[str]] = None,
-    project_id: Optional[str] = None,
-    api_key: Optional[str] = None,
+    action: Annotated[
+        str, Field(description="One of: 'list', 'get', 'create', 'delete'. Required.")
+    ],
+    resource_type: Annotated[
+        str,
+        Field(
+            description="Resource type: spectroclusters, clusterprofiles, clusterTemplates, edgehosts, or policy. Required."
+        ),
+    ] = None,
+    uid: Annotated[
+        str, Field(description="Resource UID. Required for get, create, and delete.")
+    ] = None,
+    policy_type: Annotated[
+        str,
+        Field(
+            description="Policy family for policy/spcPolicies actions. If omitted, defaults to maintenance. Optional."
+        ),
+    ] = None,
+    tags: Annotated[
+        List[str],
+        Field(
+            description="List of tags for create and delete actions. Not needed for list and get."
+        ),
+    ] = None,
+    project_id: Annotated[
+        str, Field(description="The project ID override. Optional.")
+    ] = None,
+    api_key: Annotated[
+        str, Field(description="The API key override. Optional.")
+    ] = None,
 ) -> MCPResult:
+    """Use this tool to search and manage tags in Palette. Allowed actions are list, get, create, and delete. A type is required for all actions. Supported types are spectroclusters, clusterprofiles, clusterTemplates, edgehosts, and policy. You need the unique identifier (uid) of the resource to perform get, create, and delete actions. For list, you don't need a uid."""
     session_ctx = get_session_context(ctx)
     api_key = session_ctx.get_api_key(api_key)
     project_id = session_ctx.get_project_id(project_id)
@@ -181,15 +206,15 @@ async def manage_resource_tags(
             "isError": True,
         }
 
-    with create_span("manage_resource_tags") as span:
+    with create_span("search_and_manage_resource_tags") as span:
         safe_set_tool(
             span,
-            name="manage_resource_tags",
-            description="Use this tool to manage and search for tags in Palette. Allowed actions are list, get, create, and delete. A type is required for all actions. Supported types are spectroclusters, clusterprofiles, clusterTemplates, edgehosts, and policy. You need the unique identifier (uid) of the resource to perform get, create, and delete actions. For list, you don't need a uid.",
+            name="search_and_manage_resource_tags",
+            description="Use this tool to search and manage tags in Palette. Allowed actions are list, get, create, and delete. A type is required for all actions. Supported types are spectroclusters, clusterprofiles, clusterTemplates, edgehosts, and policy. You need the unique identifier (uid) of the resource to perform get, create, and delete actions. For list, you don't need a uid.",
             parameters={
                 "action": {
                     "type": "string",
-                    "description": "One of: list, get, create, delete",
+                    "description": "One of: list, get, create, delete.",
                 },
                 "resource_type": {
                     "type": "string",
@@ -523,4 +548,4 @@ async def manage_resource_tags(
             }
 
 
-__all__ = ["manage_resource_tags"]
+__all__ = ["search_and_manage_resource_tags"]
