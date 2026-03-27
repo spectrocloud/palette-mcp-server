@@ -64,7 +64,13 @@ async def _list_clusters(
         safe_set_input(span, mask_sensitive_data({"api_key": api_key}))
 
         try:
-            headers = build_headers(api_key=api_key, project_id=project_id)
+            headers = build_headers(
+                api_key=api_key, project_id=project_id, include_content_type=True
+            )
+            payload = {
+                "filter": {},
+                "sort": [],
+            }
 
             def _compact_cluster(cluster: Dict[str, Any]) -> Dict[str, Any]:
                 metadata = cluster.get("metadata", {}) or {}
@@ -91,10 +97,11 @@ async def _list_clusters(
 
                 res = await palette_api_request(
                     palette_host=palette_host,
-                    method="GET",
-                    path="/v1/spectroclusters/",
+                    method="POST",
+                    path="/v1/dashboard/spectroclusters/search",
                     headers=headers,
                     params=query_params,
+                    body=payload,
                 )
                 json_data = res.json()
                 items = json_data.get("items") or []
@@ -514,42 +521,43 @@ async def gather_or_delete_clusters(
         str, Field(description="The operation: 'list', 'get', or 'delete'. Required.")
     ],
     uid: Annotated[
-        str, Field(description="The UID of the cluster. Required for get and delete.")
+        Optional[str],
+        Field(description="The UID of the cluster. Required for get and delete."),
     ] = None,
     active_only: Annotated[
-        bool,
+        Optional[bool],
         Field(
             description="If True and action='list', only return active (running) clusters. Optional."
         ),
     ] = False,
     limit: Annotated[
-        int,
+        Optional[int],
         Field(
-            description="Maximum number of clusters to return for list action. Default is 25. Optional."
+            description="Maximum number of clusters to return for list action. Default is 25, max is 50. Optional."
         ),
     ] = 25,
     continue_token: Annotated[
-        str,
+        Optional[str],
         Field(
             description="Continuation token from a previous list response. Optional."
         ),
     ] = None,
     compact: Annotated[
-        bool,
+        Optional[bool],
         Field(
             description="If True, return a compact list payload for cluster listings. Default is True. Optional."
         ),
     ] = True,
     force_delete: Annotated[
-        bool,
+        Optional[bool],
         Field(
             description="If True and action='delete', perform a force delete. Optional."
         ),
     ] = False,
     project_id: Annotated[
-        str, Field(description="The ID of the project. Optional.")
+        Optional[str], Field(description="The ID of the project. Optional.")
     ] = None,
-    api_key: Annotated[str, Field(description="The API key. Optional.")] = None,
+    api_key: Annotated[Optional[str], Field(description="The API key. Optional.")] = None,
 ) -> MCPResult:
     """Gather information about clusters or delete a cluster in Palette. Allowed actions are list, get, and delete. Use list to retrieve all clusters, get to retrieve a specific cluster by UID, and delete to remove a cluster by UID."""
     session_ctx = get_session_context(ctx)
@@ -573,7 +581,7 @@ async def gather_or_delete_clusters(
                 },
                 "limit": {
                     "type": "integer",
-                    "description": "Maximum number of clusters to return for list action. Default is 25.",
+                    "description": "Maximum number of clusters to return for list action. Default is 25, max is 50.",
                 },
                 "continue_token": {
                     "type": "string",
@@ -607,6 +615,15 @@ async def gather_or_delete_clusters(
             },
         )
 
+        # Inspector clients can submit explicit null values for optional fields.
+        # Normalize null booleans to default behavior before validation logic.
+        if active_only is None:
+            active_only = False
+        if compact is None:
+            compact = True
+        if force_delete is None:
+            force_delete = False
+
         if action not in ["list", "get", "delete"]:
             error_msg = f"Error: Invalid action '{action}'. Only 'get', 'list', and 'delete' are allowed actions."
             safe_set_output(span, {"error": error_msg})
@@ -634,6 +651,8 @@ async def gather_or_delete_clusters(
             safe_set_output(span, {"error": error_msg})
             safe_set_span_status(span, "ERROR", error_msg)
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
+        if action == "list" and limit is not None and limit > 50:
+            limit = 50
 
         if action == "list":
             if active_only:

@@ -1,7 +1,7 @@
 # Copyright (c) Spectro Cloud
 # SPDX-License-Identifier: Apache-2.0
 
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastmcp import Context
 from pydantic import Field
@@ -35,9 +35,9 @@ async def getKubeconfig(
         ),
     ] = False,
     project_id: Annotated[
-        str, Field(description="The ID of the project. Optional.")
+        Optional[str], Field(description="The ID of the project. Optional.")
     ] = None,
-    api_key: Annotated[str, Field(description="The API key. Optional.")] = None,
+    api_key: Annotated[Optional[str], Field(description="The API key. Optional.")] = None,
 ) -> MCPResult:
     """Gets the kubeconfig or admin kubeconfig file for a specific cluster. To use the admin kubeconfig, set admin_config to True."""
     session_ctx = get_session_context(ctx)
