@@ -1,11 +1,19 @@
 # Copyright (c) Spectro Cloud
 # SPDX-License-Identifier: Apache-2.0
 
-import os, signal, atexit, operator
+import atexit
+import operator
+import os
+import signal
 from fastmcp import FastMCP, Context
 from fastmcp.utilities.logging import get_logger
 from context import MCPSessionContext
-from helpers import cleanup_temp_files, create_signal_handler
+from helpers import (
+    cleanup_temp_files,
+    create_signal_handler,
+    ensure_otlp_traces_path,
+    normalize_phoenix_endpoint_for_container,
+)
 from tools import (
     gather_or_delete_clusters,
     gather_or_delete_clusterprofiles,
@@ -41,24 +49,31 @@ if not palette_apikey:
     exit(1)
 
 phoenix_endpoint = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
+
+
 if not phoenix_endpoint:
     logger.info("Phoenix collector endpoint is not set. Tracing will be disabled.")
 else:
-    logger.info(f"Phoenix collector endpoint is set to {phoenix_endpoint}")
     try:
-        from phoenix.otel import register
-        from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
-            OTLPSpanExporter,
+        normalized_phoenix_endpoint = normalize_phoenix_endpoint_for_container(
+            phoenix_endpoint
         )
-        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        if normalized_phoenix_endpoint != phoenix_endpoint:
+            logger.info(
+                "Detected container runtime. Rewriting PHOENIX_COLLECTOR_ENDPOINT to use host.docker.internal."
+            )
+            phoenix_endpoint = normalized_phoenix_endpoint
+        phoenix_endpoint = ensure_otlp_traces_path(phoenix_endpoint)
+        os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = phoenix_endpoint
+        logger.info(f"Phoenix collector endpoint is set to {phoenix_endpoint}")
 
-        tracer_provider = register(
+        from phoenix.otel import register
+
+        register(
             project_name="palette-mcp-server",
             endpoint=phoenix_endpoint,
+            protocol="http/protobuf",
             set_global_tracer_provider=True,
-        )
-        tracer_provider.add_span_processor(
-            SimpleSpanProcessor(OTLPSpanExporter(phoenix_endpoint))
         )
         logger.info(f"Phoenix tracing enabled for {phoenix_endpoint}")
     except Exception as e:

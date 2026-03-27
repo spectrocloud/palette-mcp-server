@@ -64,7 +64,9 @@ async def _list_cluster_profiles(
         safe_set_input(span, mask_sensitive_data({"api_key": api_key}))
 
         try:
-            headers = build_headers(api_key=api_key, project_id=project_id)
+            headers = build_headers(
+                api_key=api_key, project_id=project_id, include_content_type=True
+            )
 
             def _compact_cluster_profile(profile: Dict[str, Any]) -> Dict[str, Any]:
                 metadata = profile.get("metadata", {}) or {}
@@ -87,10 +89,11 @@ async def _list_cluster_profiles(
 
                 res = await palette_api_request(
                     palette_host=palette_host,
-                    method="GET",
-                    path="/v1/clusterprofiles/",
+                    method="POST",
+                    path="/v1/dashboard/clusterprofiles",
                     headers=headers,
                     params=query_params,
+                    body={},
                 )
                 json_data = res.json()
                 items = json_data.get("items", [])
@@ -328,33 +331,35 @@ async def gather_or_delete_clusterprofiles(
         str, Field(description="The operation: 'list', 'get', or 'delete'. Required.")
     ],
     uid: Annotated[
-        str,
+        Optional[str],
         Field(
             description="The UID of the cluster profile. Required for get and delete."
         ),
     ] = None,
     limit: Annotated[
-        int,
+        Optional[int],
         Field(
-            description="Maximum number of profiles to return for list action. Default is 25. Optional."
+            description="Maximum number of profiles to return for list action. Default is 25, max is 50. Optional."
         ),
     ] = 25,
     continue_token: Annotated[
-        str,
+        Optional[str],
         Field(
             description="Continuation token from a previous list response. Optional."
         ),
     ] = None,
     compact: Annotated[
-        bool,
+        Optional[bool],
         Field(
             description="If True, return a compact list payload for profile listings. Default is True. Optional."
         ),
     ] = True,
     project_id: Annotated[
-        str, Field(description="The ID of the project. Optional.")
+        Optional[str], Field(description="The ID of the project. Optional.")
     ] = None,
-    api_key: Annotated[str, Field(description="The API key. Optional.")] = None,
+    api_key: Annotated[
+        Optional[str], Field(description="The API key. Optional.")
+    ] = None,
 ) -> MCPResult:
     """Gather information about cluster profiles or delete a cluster profile in Palette. Allowed actions are list, get, and delete. Use list to retrieve all cluster profiles, get to retrieve a specific cluster profile by UID, and delete to remove a cluster profile by UID."""
     session_ctx = get_session_context(ctx)
@@ -374,7 +379,7 @@ async def gather_or_delete_clusterprofiles(
                 },
                 "limit": {
                     "type": "integer",
-                    "description": "Maximum number of profiles to return for list action. Default is 25.",
+                    "description": "Maximum number of profiles to return for list action. Default is 25, max is 50.",
                 },
                 "continue_token": {
                     "type": "string",
@@ -401,6 +406,11 @@ async def gather_or_delete_clusterprofiles(
                 "compact": compact,
             },
         )
+
+        # Inspector clients can submit explicit null values for optional fields.
+        # Normalize null booleans to their default behavior before validation logic.
+        if compact is None:
+            compact = True
 
         if action not in ["list", "get", "delete"]:
             error_msg = f"Error: Invalid action '{action}'. Only 'get', 'list', and 'delete' are allowed actions."
@@ -429,6 +439,8 @@ async def gather_or_delete_clusterprofiles(
             safe_set_output(span, {"error": error_msg})
             safe_set_span_status(span, "ERROR", error_msg)
             return {"content": [{"type": "text", "text": error_msg}], "isError": True}
+        if action == "list" and limit is not None and limit > 50:
+            limit = 50
 
         if action == "list":
             result = await _list_cluster_profiles(

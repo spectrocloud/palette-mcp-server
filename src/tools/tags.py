@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
-from typing import Annotated, Any, Dict, List
+from typing import Annotated, Any, Dict, List, Optional
 
 from fastmcp import Context
 from pydantic import Field
@@ -163,31 +163,32 @@ async def search_and_manage_resource_tags(
         str, Field(description="One of: 'list', 'get', 'create', 'delete'. Required.")
     ],
     resource_type: Annotated[
-        str,
+        Optional[str],
         Field(
             description="Resource type: spectroclusters, clusterprofiles, clusterTemplates, edgehosts, or policy. Required."
         ),
     ] = None,
     uid: Annotated[
-        str, Field(description="Resource UID. Required for get, create, and delete.")
+        Optional[str],
+        Field(description="Resource UID. Required for get, create, and delete."),
     ] = None,
     policy_type: Annotated[
-        str,
+        Optional[str],
         Field(
             description="Policy family for policy/spcPolicies actions. If omitted, defaults to maintenance. Optional."
         ),
     ] = None,
     tags: Annotated[
-        List[str],
+        Optional[List[str]],
         Field(
             description="List of tags for create and delete actions. Not needed for list and get."
         ),
     ] = None,
     project_id: Annotated[
-        str, Field(description="The project ID override. Optional.")
+        Optional[str], Field(description="The project ID override. Optional.")
     ] = None,
     api_key: Annotated[
-        str, Field(description="The API key override. Optional.")
+        Optional[str], Field(description="The API key override. Optional.")
     ] = None,
 ) -> MCPResult:
     """Use this tool to search and manage tags in Palette. Allowed actions are list, get, create, and delete. A type is required for all actions. Supported types are spectroclusters, clusterprofiles, clusterTemplates, edgehosts, and policy. You need the unique identifier (uid) of the resource to perform get, create, and delete actions. For list, you don't need a uid."""

@@ -7,6 +7,7 @@ import glob
 import signal
 import sys
 import httpx
+from urllib.parse import urlparse, urlunparse
 from typing import Dict, Any, Optional, Set, List
 
 
@@ -124,6 +125,50 @@ def create_signal_handler(logger=None):
         os._exit(0)
 
     return signal_handler
+
+
+def normalize_phoenix_endpoint_for_container(endpoint: str) -> str:
+    """Rewrite localhost endpoints when running inside Docker or Podman containers."""
+    if not endpoint:
+        return endpoint
+
+    # Check for container environment
+    is_docker = os.path.exists("/.dockerenv")
+    is_podman = os.path.exists("/run/.containerenv")
+
+    if not (is_docker or is_podman):
+        return endpoint
+
+    parsed = urlparse(endpoint)
+    if parsed.hostname not in {"localhost", "127.0.0.1"}:
+        return endpoint
+
+    # Allow override via environment variable
+    host = os.environ.get("PHOENIX_CONTAINER_HOST")
+    if not host:
+        if is_docker:
+            host = "host.docker.internal"
+        elif is_podman:
+            host = "host.containers.internal"
+
+    if parsed.port:
+        netloc = f"{host}:{parsed.port}"
+    else:
+        netloc = host
+    return urlunparse(parsed._replace(netloc=netloc))
+
+
+def ensure_otlp_traces_path(endpoint: str) -> str:
+    """Ensure endpoint targets the OTLP HTTP traces path."""
+    parsed = urlparse(endpoint)
+    path = (parsed.path or "").rstrip("/")
+    if path.endswith("/v1/traces"):
+        return endpoint
+    if not path:
+        path = "/v1/traces"
+    else:
+        path = f"{path}/v1/traces"
+    return urlunparse(parsed._replace(path=path))
 
 
 def build_headers(
