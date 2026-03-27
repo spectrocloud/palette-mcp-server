@@ -128,16 +128,29 @@ def create_signal_handler(logger=None):
 
 
 def normalize_phoenix_endpoint_for_container(endpoint: str) -> str:
-    """Rewrite localhost endpoints when running inside Docker."""
+    """Rewrite localhost endpoints when running inside Docker or Podman containers."""
     if not endpoint:
         return endpoint
-    if not os.path.exists("/.dockerenv"):
+
+    # Check for container environment
+    is_docker = os.path.exists("/.dockerenv")
+    is_podman = os.path.exists("/run/.containerenv")
+
+    if not (is_docker or is_podman):
         return endpoint
+
     parsed = urlparse(endpoint)
     if parsed.hostname not in {"localhost", "127.0.0.1"}:
         return endpoint
 
-    host = "host.docker.internal"
+    # Allow override via environment variable
+    host = os.environ.get("PHOENIX_CONTAINER_HOST")
+    if not host:
+        if is_docker:
+            host = "host.docker.internal"
+        elif is_podman:
+            host = "host.containers.internal"
+
     if parsed.port:
         netloc = f"{host}:{parsed.port}"
     else:

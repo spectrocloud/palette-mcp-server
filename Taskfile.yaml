@@ -77,3 +77,8 @@ tasks:
     dir: src/
     cmds:
       - uv format --preview-features format
+
+  tests:
+    desc: "Run unit tests"
+    cmds:
+      - uv run pytest tests -q

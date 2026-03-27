@@ -54,19 +54,19 @@ phoenix_endpoint = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT")
 if not phoenix_endpoint:
     logger.info("Phoenix collector endpoint is not set. Tracing will be disabled.")
 else:
-    normalized_phoenix_endpoint = normalize_phoenix_endpoint_for_container(
-        phoenix_endpoint
-    )
-    if normalized_phoenix_endpoint != phoenix_endpoint:
-        logger.info(
-            "Detected container runtime. Rewriting PHOENIX_COLLECTOR_ENDPOINT to use host.docker.internal."
-        )
-        phoenix_endpoint = normalized_phoenix_endpoint
-        os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = phoenix_endpoint
-    phoenix_endpoint = ensure_otlp_traces_path(phoenix_endpoint)
-    os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = phoenix_endpoint
-    logger.info(f"Phoenix collector endpoint is set to {phoenix_endpoint}")
     try:
+        normalized_phoenix_endpoint = normalize_phoenix_endpoint_for_container(
+            phoenix_endpoint
+        )
+        if normalized_phoenix_endpoint != phoenix_endpoint:
+            logger.info(
+                "Detected container runtime. Rewriting PHOENIX_COLLECTOR_ENDPOINT to use host.docker.internal."
+            )
+            phoenix_endpoint = normalized_phoenix_endpoint
+        phoenix_endpoint = ensure_otlp_traces_path(phoenix_endpoint)
+        os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = phoenix_endpoint
+        logger.info(f"Phoenix collector endpoint is set to {phoenix_endpoint}")
+
         from phoenix.otel import register
 
         register(
