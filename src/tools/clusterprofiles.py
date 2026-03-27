@@ -357,7 +357,9 @@ async def gather_or_delete_clusterprofiles(
     project_id: Annotated[
         Optional[str], Field(description="The ID of the project. Optional.")
     ] = None,
-    api_key: Annotated[Optional[str], Field(description="The API key. Optional.")] = None,
+    api_key: Annotated[
+        Optional[str], Field(description="The API key. Optional.")
+    ] = None,
 ) -> MCPResult:
     """Gather information about cluster profiles or delete a cluster profile in Palette. Allowed actions are list, get, and delete. Use list to retrieve all cluster profiles, get to retrieve a specific cluster profile by UID, and delete to remove a cluster profile by UID."""
     session_ctx = get_session_context(ctx)

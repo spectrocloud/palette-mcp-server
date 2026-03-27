@@ -7,6 +7,7 @@ import glob
 import signal
 import sys
 import httpx
+from urllib.parse import urlparse, urlunparse
 from typing import Dict, Any, Optional, Set, List
 
 
@@ -124,6 +125,37 @@ def create_signal_handler(logger=None):
         os._exit(0)
 
     return signal_handler
+
+
+def normalize_phoenix_endpoint_for_container(endpoint: str) -> str:
+    """Rewrite localhost endpoints when running inside Docker."""
+    if not endpoint:
+        return endpoint
+    if not os.path.exists("/.dockerenv"):
+        return endpoint
+    parsed = urlparse(endpoint)
+    if parsed.hostname not in {"localhost", "127.0.0.1"}:
+        return endpoint
+
+    host = "host.docker.internal"
+    if parsed.port:
+        netloc = f"{host}:{parsed.port}"
+    else:
+        netloc = host
+    return urlunparse(parsed._replace(netloc=netloc))
+
+
+def ensure_otlp_traces_path(endpoint: str) -> str:
+    """Ensure endpoint targets the OTLP HTTP traces path."""
+    parsed = urlparse(endpoint)
+    path = (parsed.path or "").rstrip("/")
+    if path.endswith("/v1/traces"):
+        return endpoint
+    if not path:
+        path = "/v1/traces"
+    else:
+        path = f"{path}/v1/traces"
+    return urlunparse(parsed._replace(path=path))
 
 
 def build_headers(

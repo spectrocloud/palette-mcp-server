@@ -37,7 +37,9 @@ async def getKubeconfig(
     project_id: Annotated[
         Optional[str], Field(description="The ID of the project. Optional.")
     ] = None,
-    api_key: Annotated[Optional[str], Field(description="The API key. Optional.")] = None,
+    api_key: Annotated[
+        Optional[str], Field(description="The API key. Optional.")
+    ] = None,
 ) -> MCPResult:
     """Gets the kubeconfig or admin kubeconfig file for a specific cluster. To use the admin kubeconfig, set admin_config to True."""
     session_ctx = get_session_context(ctx)

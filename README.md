@@ -204,4 +204,10 @@ task start-debug
 
 This will start the a container for the Phoenix collector and the Palette MCP server. Use the Phoenix AI to review traces to help debug issues and verify expected behavior. Phoenix AI will be available at [http://localhost:6006](http://localhost:6006).
 
+If you are using a container runtime, the Phoenix collector endpoint will be rewritten to use `host.docker.internal` to ensure the Phoenix collector is accessible from the container. You can also set the `PHOENIX_COLLECTOR_ENDPOINT` environment variable to the Phoenix collector endpoint to use a different endpoint.
+
+```bash
+PHOENIX_COLLECTOR_ENDPOINT=http://host.docker.internal:6006/v1/traces
+```
+
 To stop the development server, press `Ctrl+C` in the terminal where the server is active. The server will gracefully shutdown and clean up any temporary files.

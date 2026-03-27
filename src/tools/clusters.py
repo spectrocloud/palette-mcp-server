@@ -557,7 +557,9 @@ async def gather_or_delete_clusters(
     project_id: Annotated[
         Optional[str], Field(description="The ID of the project. Optional.")
     ] = None,
-    api_key: Annotated[Optional[str], Field(description="The API key. Optional.")] = None,
+    api_key: Annotated[
+        Optional[str], Field(description="The API key. Optional.")
+    ] = None,
 ) -> MCPResult:
     """Gather information about clusters or delete a cluster in Palette. Allowed actions are list, get, and delete. Use list to retrieve all clusters, get to retrieve a specific cluster by UID, and delete to remove a cluster by UID."""
     session_ctx = get_session_context(ctx)
