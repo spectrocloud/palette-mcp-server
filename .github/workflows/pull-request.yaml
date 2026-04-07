@@ -51,6 +51,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          python-version-file: src/.python-version
 
       - name: Ensure PR is reviewable
         shell: bash
@@ -71,6 +73,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          python-version-file: src/.python-version
 
       - name: go-task/setup-task
         uses: go-task/setup-task@v2
