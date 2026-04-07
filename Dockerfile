@@ -2,43 +2,43 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim AS uv-bin
+FROM dhi.io/python:3 AS builder
 
 ARG VERSION=0.0.1
 
 
 ENV VERSION=${VERSION}
+ENV UV_NO_MANAGED_PYTHON=1
 
 
-RUN apt-get update -y && apt-get upgrade -y && \
-    apt-get install -y ca-certificates curl unzip
+COPY --from=uv-bin /usr/local/bin/uv /usr/local/bin/uv
+COPY --from=uv-bin /usr/local/bin/uvx /usr/local/bin/uvx
 
 
-COPY . /app
+COPY --chown=65532:65532 . /app
 WORKDIR /app
-RUN uv sync --frozen
+RUN ["uv", "sync", "--frozen", "--python", "/opt/python/bin/python"]
 
 
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM dhi.io/python:3
+
+ARG VERSION=0.0.1
+ENV UV_NO_MANAGED_PYTHON=1
 
 LABEL org.opencontainers.image.title="Palette MCP Server"
 LABEL org.opencontainers.image.description="An MCP server for Palette"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
-LABEL org.opencontainers.image.source=https://github.com/palette-ai/palette-mcp-server
+LABEL org.opencontainers.image.source=https://github.com/spectrocloud/palette-mcp-server
 LABEL org.opencontainers.image.version=${VERSION}
 LABEL org.opencontainers.image.vendor="Spectro Cloud"
 
 
 
-ARG VERSION=0.0.1
 ENV VERSION=${VERSION}
 
-RUN apt-get update -y && \
-    apt-get install -y ca-certificates && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-
+COPY --from=uv-bin /usr/local/bin/uv /usr/local/bin/uv
+COPY --from=uv-bin /usr/local/bin/uvx /usr/local/bin/uvx
 COPY --from=builder /app /app
 
 WORKDIR /app
