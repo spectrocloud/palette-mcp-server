@@ -47,10 +47,11 @@ tasks:
       - echo "📋 Listing all available tools:"
       - |
         npx @modelcontextprotocol/inspector --cli \
+        --method tools/list \
         -e SPECTROCLOUD_APIKEY=$SPECTROCLOUD_APIKEY \
         -e MCP_INSPECTOR=true \
         -e PHOENIX_COLLECTOR_ENDPOINT=$PHOENIX_COLLECTOR_ENDPOINT \
-        uv run src/server.py --method tools/list
+        -- uv run python src/server.py
 
   build-image:
     desc: "Build the Docker image. Example: task build-image -- dev"
