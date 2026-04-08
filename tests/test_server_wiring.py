@@ -4,7 +4,14 @@ import sys
 import types
 
 
-def _load_server_module(monkeypatch, *, host=None, apikey="test-api-key", default_project_id=None, allow_dangerous=None):
+def _load_server_module(
+    monkeypatch,
+    *,
+    host=None,
+    apikey="test-api-key",
+    default_project_id=None,
+    allow_dangerous=None,
+):
     for key in [
         "SPECTROCLOUD_HOST",
         "SPECTROCLOUD_APIKEY",

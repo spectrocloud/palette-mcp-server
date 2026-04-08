@@ -22,4 +22,6 @@ def test_set_tool_metadata_and_set_span_data_gracefully_handle_missing_methods()
 
     span = SpanWithoutMethods()
     tracing.set_tool_metadata(span, "name", "desc", {})
-    tracing.set_span_data(span, input_data={"a": 1}, output_data={"b": 2}, status=("ok",))
+    tracing.set_span_data(
+        span, input_data={"a": 1}, output_data={"b": 2}, status=("ok",)
+    )

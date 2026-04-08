@@ -82,7 +82,10 @@ def test_clusters_delete_routes_to_internal_delete_helper(monkeypatch):
     async def fake_delete(ctx, uid, project_id, api_key, force_delete):
         seen["uid"] = uid
         seen["force_delete"] = force_delete
-        return {"content": [{"type": "text", "text": '{"deleted":true}'}], "isError": False}
+        return {
+            "content": [{"type": "text", "text": '{"deleted":true}'}],
+            "isError": False,
+        }
 
     monkeypatch.setattr(clusters, "_delete_cluster_by_uid", fake_delete, raising=True)
 

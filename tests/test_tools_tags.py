@@ -76,14 +76,22 @@ def test_tags_list_spectroclusters_routes_to_tag_endpoint(monkeypatch):
     seen = {}
 
     async def fake_palette_api_request(
-        palette_host, method, path, headers, params=None, body=None, allowed_status_codes=None
+        palette_host,
+        method,
+        path,
+        headers,
+        params=None,
+        body=None,
+        allowed_status_codes=None,
     ):
         seen["palette_host"] = palette_host
         seen["method"] = method
         seen["path"] = path
         return FakeResponse({"tags": ["env:prod", "team:sre"]})
 
-    monkeypatch.setattr(tags, "palette_api_request", fake_palette_api_request, raising=True)
+    monkeypatch.setattr(
+        tags, "palette_api_request", fake_palette_api_request, raising=True
+    )
 
     result = asyncio.run(
         tags.search_and_manage_resource_tags(
@@ -99,7 +107,12 @@ def test_tags_list_spectroclusters_routes_to_tag_endpoint(monkeypatch):
 
 def test_tags_list_clusterprofiles_uses_profile_list_helper(monkeypatch):
     async def fake_list_profiles(
-        ctx, project_id=None, api_key=None, limit=None, continue_token=None, compact=True
+        ctx,
+        project_id=None,
+        api_key=None,
+        limit=None,
+        continue_token=None,
+        compact=True,
     ):
         profile_payload = {
             "clusterProfiles": {
@@ -114,7 +127,9 @@ def test_tags_list_clusterprofiles_uses_profile_list_helper(monkeypatch):
             "isError": False,
         }
 
-    monkeypatch.setattr(tags, "_list_cluster_profiles", fake_list_profiles, raising=True)
+    monkeypatch.setattr(
+        tags, "_list_cluster_profiles", fake_list_profiles, raising=True
+    )
 
     result = asyncio.run(
         tags.search_and_manage_resource_tags(
