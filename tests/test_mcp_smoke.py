@@ -18,7 +18,10 @@ class FakeResponse:
 
 
 def _load_runtime_server(monkeypatch):
+    monkeypatch.delenv("SPECTROCLOUD_HOST", raising=False)
     monkeypatch.setenv("SPECTROCLOUD_APIKEY", "test-api-key")
+    monkeypatch.delenv("SPECTROCLOUD_DEFAULT_PROJECT_ID", raising=False)
+    monkeypatch.delenv("ALLOW_DANGEROUS_ACTIONS", raising=False)
     monkeypatch.delenv("PHOENIX_COLLECTOR_ENDPOINT", raising=False)
     import server
 
