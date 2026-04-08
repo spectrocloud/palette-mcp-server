@@ -106,6 +106,7 @@ jobs:
       - name: Build Image
         uses: docker/bake-action@v7
         with:
+          sources: .
           push: false
           set: |
             *.tags=public.ecr.aws/palette-ai/palette-mcp-server:test
