@@ -24,7 +24,9 @@ def test_clusterprofiles_invalid_action_returns_error():
 
 
 def test_clusterprofiles_get_requires_uid():
-    result = asyncio.run(clusterprofiles.gather_or_delete_clusterprofiles(_ctx(), action="get"))
+    result = asyncio.run(
+        clusterprofiles.gather_or_delete_clusterprofiles(_ctx(), action="get")
+    )
     assert result["isError"] is True
     assert "requires a cluster profile UID" in result["content"][0]["text"]
 
@@ -46,10 +48,14 @@ def test_clusterprofiles_list_caps_limit_to_fifty(monkeypatch):
         seen["limit"] = limit
         return {"content": [{"type": "text", "text": '{"ok":true}'}], "isError": False}
 
-    monkeypatch.setattr(clusterprofiles, "_list_cluster_profiles", fake_list, raising=True)
+    monkeypatch.setattr(
+        clusterprofiles, "_list_cluster_profiles", fake_list, raising=True
+    )
 
     result = asyncio.run(
-        clusterprofiles.gather_or_delete_clusterprofiles(_ctx(), action="list", limit=200)
+        clusterprofiles.gather_or_delete_clusterprofiles(
+            _ctx(), action="list", limit=200
+        )
     )
     assert result["isError"] is False
     assert seen["limit"] == 50
@@ -62,7 +68,9 @@ def test_clusterprofiles_list_normalizes_none_compact_to_true(monkeypatch):
         seen["compact"] = compact
         return {"content": [{"type": "text", "text": '{"ok":true}'}], "isError": False}
 
-    monkeypatch.setattr(clusterprofiles, "_list_cluster_profiles", fake_list, raising=True)
+    monkeypatch.setattr(
+        clusterprofiles, "_list_cluster_profiles", fake_list, raising=True
+    )
 
     result = asyncio.run(
         clusterprofiles.gather_or_delete_clusterprofiles(
@@ -78,7 +86,10 @@ def test_clusterprofiles_delete_routes_to_internal_delete_helper(monkeypatch):
 
     async def fake_delete(ctx, uid, project_id, api_key):
         seen["uid"] = uid
-        return {"content": [{"type": "text", "text": '{"deleted":true}'}], "isError": False}
+        return {
+            "content": [{"type": "text", "text": '{"deleted":true}'}],
+            "isError": False,
+        }
 
     monkeypatch.setattr(
         clusterprofiles, "_delete_cluster_profile_by_uid", fake_delete, raising=True

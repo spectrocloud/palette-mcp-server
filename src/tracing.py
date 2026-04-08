@@ -23,10 +23,10 @@ def create_span(name: str):
         return tracer.start_as_current_span(
             name, openinference_span_kind="tool", set_status_on_exception=False
         )
-    except (TypeError, AttributeError):
+    except TypeError, AttributeError:
         try:
             return tracer.start_as_current_span(name)
-        except (TypeError, AttributeError):
+        except TypeError, AttributeError:
             return nullcontext()
 
 
@@ -98,7 +98,7 @@ def set_tool_metadata(span, name: str, description: str, parameters: dict):
 
     try:
         span.set_tool(name=name, description=description, parameters=parameters)
-    except (TypeError, AttributeError):
+    except TypeError, AttributeError:
         pass
 
 
@@ -112,17 +112,17 @@ def set_span_data(
     try:
         if input_data is not None:
             span.set_input(json.dumps(input_data))
-    except (TypeError, AttributeError):
+    except TypeError, AttributeError:
         pass
 
     try:
         if output_data is not None:
             span.set_output(json.dumps(output_data))
-    except (TypeError, AttributeError):
+    except TypeError, AttributeError:
         pass
 
     try:
         if status is not None:
             span.set_status(status)
-    except (TypeError, AttributeError):
+    except TypeError, AttributeError:
         pass

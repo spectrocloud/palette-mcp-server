@@ -7,7 +7,10 @@ from helpers import (
 
 
 def test_ensure_otlp_traces_path_appends_default_path():
-    assert ensure_otlp_traces_path("http://collector:4318") == "http://collector:4318/v1/traces"
+    assert (
+        ensure_otlp_traces_path("http://collector:4318")
+        == "http://collector:4318/v1/traces"
+    )
 
 
 def test_ensure_otlp_traces_path_preserves_existing_path():

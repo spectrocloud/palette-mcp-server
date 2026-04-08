@@ -4,7 +4,9 @@ import helpers
 
 
 class FakeResponse:
-    def __init__(self, status_code: int, text: str = "", json_payload=None, json_error=False):
+    def __init__(
+        self, status_code: int, text: str = "", json_payload=None, json_error=False
+    ):
         self.status_code = status_code
         self.text = text
         self._json_payload = json_payload

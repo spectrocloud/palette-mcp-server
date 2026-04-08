@@ -38,7 +38,10 @@ def test_inmemory_mcp_smoke_clusters_dispatch(monkeypatch):
                 "compact": compact,
             }
         }
-        return {"content": [{"type": "text", "text": json.dumps(payload)}], "isError": False}
+        return {
+            "content": [{"type": "text", "text": json.dumps(payload)}],
+            "isError": False,
+        }
 
     monkeypatch.setattr(clusters, "_list_clusters", fake_list_clusters, raising=True)
     server = _load_runtime_server(monkeypatch)
@@ -47,7 +50,8 @@ def test_inmemory_mcp_smoke_clusters_dispatch(monkeypatch):
         mcp = server.create_mcp()
         async with Client(mcp) as client:
             return await client.call_tool(
-                "gather_or_delete_clusters", {"action": "list", "limit": 5, "compact": True}
+                "gather_or_delete_clusters",
+                {"action": "list", "limit": 5, "compact": True},
             )
 
     result = asyncio.run(run_call())
@@ -61,13 +65,21 @@ def test_inmemory_mcp_smoke_clusters_dispatch(monkeypatch):
 
 def test_inmemory_mcp_smoke_tags_dispatch(monkeypatch):
     async def fake_palette_api_request(
-        palette_host, method, path, headers, params=None, body=None, allowed_status_codes=None
+        palette_host,
+        method,
+        path,
+        headers,
+        params=None,
+        body=None,
+        allowed_status_codes=None,
     ):
         assert method == "GET"
         assert path == "/v1/spectroclusters/tags"
         return FakeResponse({"tags": ["env:prod", "team:platform"]})
 
-    monkeypatch.setattr(tags, "palette_api_request", fake_palette_api_request, raising=True)
+    monkeypatch.setattr(
+        tags, "palette_api_request", fake_palette_api_request, raising=True
+    )
     server = _load_runtime_server(monkeypatch)
 
     async def run_call():
