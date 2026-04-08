@@ -82,7 +82,7 @@ wheels = [
 
 [[package]]
 name = "arize-phoenix"
-version = "13.23.0"
+version = "14.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aioitertools" },
@@ -114,7 +114,6 @@ dependencies = [
     { name = "orjson" },
     { name = "pandas" },
     { name = "prometheus-client" },
-    { name = "protobuf" },
     { name = "psutil" },
     { name = "pyarrow" },
     { name = "pydantic" },
@@ -134,9 +133,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3f/ec/9452726c06b2438711c4b37f162b48ec1efa21051be702e2c5bcc45acbf6/arize_phoenix-13.23.0.tar.gz", hash = "sha256:0bb61b9d71a923253047ce536bd8bb9fef47f6f6e4a7b38545c63921e09becef", size = 4603057, upload-time = "2026-04-02T06:31:14.823Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/85/7b/a02e96a2388c522c41caeeda197f0f5754a74ff1a8cea7dc26d766545c60/arize_phoenix-14.1.1.tar.gz", hash = "sha256:cd430391001107df567efe30ab4c0c5219700d106c38c3584ea7e66b855c54e7", size = 4692555, upload-time = "2026-04-08T15:03:57.493Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e9/7e/8b2107d027294eb15dffc58eb2e50f8681323864ad7deacd34f6cfbfcc25/arize_phoenix-13.23.0-py3-none-any.whl", hash = "sha256:21e5c4b03a58c21ed15de26cfcd857f1c4dd519483cbe559976abb1db27ca061", size = 4939303, upload-time = "2026-04-02T06:31:12.69Z" },
+    { url = "https://files.pythonhosted.org/packages/72/3c/ff28028a4a343f739611ff082a99f53b8dbc0c3e00246139d91e788873b6/arize_phoenix-14.1.1-py3-none-any.whl", hash = "sha256:97d38b4c5103aa9d2f702961e273c7fc64d57d1fd17f549167cdf37685141e1c", size = 5028926, upload-time = "2026-04-08T15:03:54.447Z" },
 ]
 
 [[package]]
@@ -1198,7 +1197,7 @@ wheels = [
 
 [[package]]
 name = "palette-mcp-server"
-version = "0.1.6"
+version = "0.2.4"
 source = { virtual = "." }
 dependencies = [
     { name = "arize-phoenix" },
@@ -1216,7 +1215,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "arize-phoenix", specifier = "==13.23.0" },
+    { name = "arize-phoenix", specifier = "==14.1.1" },
     { name = "fastmcp", specifier = ">=3.0.0,<4" },
     { name = "httpx", specifier = "==0.28.1" },
     { name = "mcp", specifier = ">=1.10.0" },
