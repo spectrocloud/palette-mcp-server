@@ -88,3 +88,20 @@ tasks:
     desc: "Run unit tests with coverage (terminal + htmlcov/)"
     cmds:
       - uv run pytest tests -q --cov=src --cov-report=term-missing --cov-report=html
+
+  e2e-cleanup:
+    desc: "Tear down e2e test infrastructure (terraform destroy + kind cluster delete)"
+    dotenv: [.env]
+    cmds:
+      - SPECTROCLOUD_APIKEY="$TEST_SPECTROCLOUD_API_KEY" SPECTROCLOUD_PROJECT_UID="$TEST_PROJECT_UID" terraform -chdir=terraform destroy -auto-approve
+      - kind delete cluster --name palette-mcp-server-cluster
+
+  e2e:
+    desc: "Run end-to-end tests against a live Palette environment"
+    dotenv: [.env]
+    cmds:
+      - docker build -t public.ecr.aws/palette-ai/palette-mcp-server:test .
+      - kind get clusters | grep -q palette-mcp-server-cluster || kind create cluster --name palette-mcp-server-cluster
+      - SPECTROCLOUD_APIKEY="$TEST_SPECTROCLOUD_API_KEY" SPECTROCLOUD_PROJECT_UID="$TEST_PROJECT_UID" terraform -chdir=terraform init
+      - SPECTROCLOUD_APIKEY="$TEST_SPECTROCLOUD_API_KEY" SPECTROCLOUD_PROJECT_UID="$TEST_PROJECT_UID" terraform -chdir=terraform apply -auto-approve
+      - SPECTROCLOUD_APIKEY="$TEST_SPECTROCLOUD_API_KEY" SPECTROCLOUD_PROJECT_UID="$TEST_PROJECT_UID" SPECTROCLOUD_DEFAULT_PROJECT_ID="$TEST_PROJECT_ID" uv run --group e2e python tests/e2e.py

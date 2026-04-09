@@ -118,8 +118,40 @@ jobs:
           version: v0.31.0
           cluster_name: palette-mcp-server-cluster
 
-      - name: Load Docker Image into kind Cluster
-        run: |
-          echo "Loading Docker Image into kind cluster"
-          kind load docker-image public.ecr.aws/palette-ai/palette-mcp-server:test --name palette-mcp-server-cluster
-          echo "Docker Image loaded into kind cluster"
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: terraform
+        run: terraform apply -auto-approve
+        env:
+          TF_VAR_api_key: ${{ secrets.SPECTROCLOUD_APIKEY }}
+          TF_VAR_project_name: ${{ secrets.SPECTROCLOUD_PROJECT_NAME }}
+          SPECTROCLOUD_APIKEY: ${{ secrets.SPECTROCLOUD_APIKEY }}
+          SPECTROCLOUD_PROJECT_UID: ${{ secrets.SPECTROCLOUD_DEFAULT_PROJECT_ID }}
+
+      - name: Run E2E Tests
+        run: uv run --group e2e python tests/e2e.py
+        env:
+          MCP_IMAGE: public.ecr.aws/palette-ai/palette-mcp-server:test
+          E2E_MODEL: gpt-4o
+          JUDGE_MODEL: gpt-4o
+          SPECTROCLOUD_APIKEY: ${{ secrets.SPECTROCLOUD_APIKEY }}
+          SPECTROCLOUD_HOST: ${{ secrets.SPECTROCLOUD_HOST }}
+          SPECTROCLOUD_PROJECT_UID: ${{ secrets.SPECTROCLOUD_DEFAULT_PROJECT_ID }}
+          SPECTROCLOUD_DEFAULT_PROJECT_ID: ${{ secrets.SPECTROCLOUD_DEFAULT_PROJECT_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Terraform Destroy
+        if: always()
+        working-directory: terraform
+        run: terraform destroy -auto-approve
+        env:
+          TF_VAR_api_key: ${{ secrets.SPECTROCLOUD_APIKEY }}
+          TF_VAR_project_name: ${{ secrets.SPECTROCLOUD_PROJECT_NAME }}
+          SPECTROCLOUD_APIKEY: ${{ secrets.SPECTROCLOUD_APIKEY }}
+          SPECTROCLOUD_PROJECT_UID: ${{ secrets.SPECTROCLOUD_DEFAULT_PROJECT_ID }}

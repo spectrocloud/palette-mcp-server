@@ -5,6 +5,7 @@ This is a repository that contains the code for the Palette MCP server. The Pale
 ## Repository Structure
 
 - `src/`: Contains the Python code for the Palette MCP server.
+- `tests/`: Contains unit tests and end-to-end tests for the Palette MCP server.
 - `scripts/`: Contains internal scripts for development and debugging.
 - `public/`: Contains public assets for the Palette MCP server.
 - `tmp/`: Contains temporary files that developers use and can store without worrying about committing to the repository.
@@ -12,6 +13,36 @@ This is a repository that contains the code for the Palette MCP server. The Pale
 ## Development
 
 - Use Taskfile for quick and pre-established tasks.
+
+## E2E Tests
+
+The end-to-end test suite runs 13 isolated LLM-agent steps against a live Palette environment and a KinD cluster provisioned by Terraform.
+
+**Run locally:**
+
+```shell
+task e2e
+```
+
+**Clean up if something goes wrong:**
+
+```shell
+task e2e-cleanup
+```
+
+**Required environment variables** (set in `.env` or the shell):
+
+| Variable | Description |
+|---|---|
+| `SPECTROCLOUD_APIKEY` | Palette API key |
+| `SPECTROCLOUD_HOST` | Palette API host (defaults to `api.spectrocloud.com`) |
+| `SPECTROCLOUD_PROJECT_UID` | Palette project UID |
+| `SPECTROCLOUD_DEFAULT_PROJECT_ID` | Palette default project ID |
+| `OPENAI_API_KEY` | OpenAI API key (used by the tester agent and judge) |
+
+Test coverage is tracked in `tests/e2e_coverage.md`.
+Infrastructure helpers (Terraform, kubectl, cluster polling, smolagents utilities) live in `tests/e2e_helpers.py`.
+Test definitions, the LLM judge, and the main entrypoint live in `tests/e2e.py`.
 
 ## General Guidelines
 
