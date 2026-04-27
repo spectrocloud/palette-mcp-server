@@ -125,7 +125,7 @@ async def search_gather_packs(
     compact: Annotated[
         Optional[bool],
         Field(
-            description="If True, return a compact payload. For 'list': name, displayName, cloudTypes, layer, type, registry uid/latestVersion. For 'get': all fields except YAML values. Default is True. Optional."
+            description="If True, return a compact payload. For 'list': name, displayName, cloudTypes, layer, type, and registry registryUid/latestPackUid/latestVersion. For 'get': all fields except packValues (YAML content, readme, and schema are omitted entirely). Default is True. Optional."
         ),
     ] = True,
     project_id: Annotated[
@@ -135,7 +135,7 @@ async def search_gather_packs(
         Optional[str], Field(description="The API key. Optional.")
     ] = None,
 ) -> MCPResult:
-    """Search for packs or retrieve a specific pack in Palette. Use action='list' to search packs by display name, action='get' to fetch a specific pack by UID. List results are sorted by layer ascending. Get returns full pack detail; compact=True strips YAML values."""
+    """Search for packs or retrieve a specific pack in Palette. Use action='list' to search packs by display name, action='get' to fetch a specific pack by UID. List results are sorted by layer ascending. For 'get', compact=True omits packValues entirely (YAML, readme, and schema); compact=False returns the full response including packValues."""
     session_ctx = get_session_context(ctx)
 
     with create_span("search_gather_packs") as span:
@@ -158,7 +158,7 @@ async def search_gather_packs(
                 },
                 "compact": {
                     "type": "boolean",
-                    "description": "If True, return compact payload. If False, return full detail. In list, this returns only name, displayName, cloudTypes, layer, type, registry uid/latestVersion. In get, this returns all fields except pack YAML values, including the YAML presets and readme.",
+                    "description": "If True, return compact payload. For 'list': name, displayName, cloudTypes, layer, type, registry registryUid/latestPackUid/latestVersion. For 'get': all fields except packValues (YAML content, readme, and schema omitted entirely). If False, return full detail.",
                 },
                 "project_id": {
                     "type": "string",

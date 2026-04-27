@@ -279,7 +279,7 @@ def build_test_case_factories():
             required_resource_type=None,
             judge_goal=f'"{DELETE_CLUSTER_PROFILE_NAME}" cluster profile was deleted successfully.',
         ),
-        # Step 13 — list packs, find hello-universe by display name
+        # Step 13 — list packs, find hello-universe by display name.
         lambda _s: E2ETestCase(
             name="list_packs",
             prompt=(
@@ -292,7 +292,7 @@ def build_test_case_factories():
             required_resource_type=None,
             judge_goal=f'A pack named "{HELLO_UNIVERSE_PACK_NAME}" is present in the search results and its latestPackUid is reported as PACK_UID.',
         ),
-        # Step 14 — get hello-universe pack by UID with full detail (compact=False)
+        # Step 14 — get hello-universe pack by UID with full detail (compact=False).
         lambda s: E2ETestCase(
             name="get_pack",
             prompt=(
@@ -311,7 +311,7 @@ def build_test_case_factories():
                 f'and at least one entry has a non-empty "readme".'
             ),
         ),
-        # Step 15 — delete cluster
+        # Step 15 — delete cluster.
         lambda s: E2ETestCase(
             name="delete_cluster",
             prompt=(
