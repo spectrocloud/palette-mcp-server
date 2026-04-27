@@ -1,3 +1,6 @@
+# Copyright (c) Spectro Cloud
+# SPDX-License-Identifier: Apache-2.0
+
 resource "spectrocloud_cluster_brownfield" "kind-cluster" {
   name        = "kind-cli-cluster-${regex("^([a-f0-9]{8})-", uuid())[0]}"
   cloud_type  = "generic"

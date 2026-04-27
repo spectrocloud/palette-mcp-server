@@ -1,3 +1,6 @@
+# Copyright (c) Spectro Cloud
+# SPDX-License-Identifier: Apache-2.0
+
 data "spectrocloud_pack_simple" "hello-universe" {
   name         = "hello-universe"
   version      = "1.3.1"
