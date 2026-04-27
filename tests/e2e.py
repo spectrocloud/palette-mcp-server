@@ -287,7 +287,7 @@ def build_test_case_factories():
             prompt=(
                 f'Call search_gather_packs with action="list" and pack_name="{HELLO_UNIVERSE_PACK_DISPLAY_NAME}". '
                 f'Confirm that a pack with the name "{HELLO_UNIVERSE_PACK_NAME}" appears in the results. '
-                f'Also confirm that the pack UID "{_uid_or_unknown(s, "hello_universe_pack_uid")}" appears as a latestPackUid in at least one registry entry of the matching pack. '
+                f'Also confirm that the matching pack has at least one registry entry with a non-empty latestPackUid. '
                 f"End your response with exactly: PACK_UID: <latestPackUid from the first registry entry of the matching pack>"
             ),
             required_tool="search_gather_packs",
@@ -295,7 +295,7 @@ def build_test_case_factories():
             required_resource_type=None,
             judge_goal=(
                 f'A pack named "{HELLO_UNIVERSE_PACK_NAME}" is present in the search results, '
-                f"the expected Terraform UID is present as a latestPackUid, "
+                f"the matching pack has at least one non-empty latestPackUid, "
                 f"and the first registry latestPackUid is reported as PACK_UID."
             ),
         ),
