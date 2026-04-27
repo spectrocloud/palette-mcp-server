@@ -287,7 +287,7 @@ def build_test_case_factories():
             prompt=(
                 f'Call search_gather_packs with action="list" and pack_name="{HELLO_UNIVERSE_PACK_DISPLAY_NAME}". '
                 f'Confirm that a pack with the name "{HELLO_UNIVERSE_PACK_NAME}" appears in the results. '
-                f'Also confirm that the matching pack has at least one registry entry with a non-empty latestPackUid. '
+                f"Also confirm that the matching pack has at least one registry entry with a non-empty latestPackUid. "
                 f"End your response with exactly: PACK_UID: <latestPackUid from the first registry entry of the matching pack>"
             ),
             required_tool="search_gather_packs",
