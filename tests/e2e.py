@@ -293,8 +293,8 @@ def build_test_case_factories():
             required_resource_type=None,
             judge_goal=(
                 f'A pack named "{HELLO_UNIVERSE_PACK_NAME}" is present in the search results, '
-                f'the expected Terraform UID is present as a latestPackUid, '
-                f'and the first registry latestPackUid is reported as PACK_UID.'
+                f"the expected Terraform UID is present as a latestPackUid, "
+                f"and the first registry latestPackUid is reported as PACK_UID."
             ),
         ),
         # Step 14 — get hello-universe pack by UID with full detail (compact=False).
