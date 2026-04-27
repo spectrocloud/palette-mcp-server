@@ -280,24 +280,29 @@ def build_test_case_factories():
             judge_goal=f'"{DELETE_CLUSTER_PROFILE_NAME}" cluster profile was deleted successfully.',
         ),
         # Step 13 — list packs, find hello-universe by display name.
-        lambda _s: E2ETestCase(
+        lambda s: E2ETestCase(
             name="list_packs",
             prompt=(
                 f'Call search_gather_packs with action="list" and pack_name="{HELLO_UNIVERSE_PACK_DISPLAY_NAME}". '
                 f'Confirm that a pack with the name "{HELLO_UNIVERSE_PACK_NAME}" appears in the results. '
+                f'Also confirm that the pack UID "{_uid_or_unknown(s, "hello_universe_pack_uid")}" appears as a latestPackUid in at least one registry entry of the matching pack. '
                 f"End your response with exactly: PACK_UID: <latestPackUid from the first registry entry of the matching pack>"
             ),
             required_tool="search_gather_packs",
             required_action="list",
             required_resource_type=None,
-            judge_goal=f'A pack named "{HELLO_UNIVERSE_PACK_NAME}" is present in the search results and its latestPackUid is reported as PACK_UID.',
+            judge_goal=(
+                f'A pack named "{HELLO_UNIVERSE_PACK_NAME}" is present in the search results, '
+                f'the expected Terraform UID is present as a latestPackUid, '
+                f'and the first registry latestPackUid is reported as PACK_UID.'
+            ),
         ),
         # Step 14 — get hello-universe pack by UID with full detail (compact=False).
         lambda s: E2ETestCase(
             name="get_pack",
             prompt=(
                 f'Call search_gather_packs with action="get", '
-                f'pack_uid="{_uid_or_unknown(s, "hello_universe_pack_uid")}", and compact=False. '
+                f'pack_uid="{_uid_or_unknown(s, "latest_pack_uid")}", and compact=False. '
                 f'Confirm the pack name is "{HELLO_UNIVERSE_PACK_NAME}". '
                 f'Confirm that the response includes a non-empty "packValues" array where at least one entry contains a non-empty "values" field (the YAML content). '
                 f'Also confirm that at least one entry in "packValues" contains a non-empty "readme" field.'
@@ -408,6 +413,7 @@ def main() -> None:
         "cluster_uid": cluster_uid,
         "delete_profile_uid": None,
         "hello_universe_pack_uid": hello_universe_pack_uid,
+        "latest_pack_uid": None,
     }
 
     print(f"\nStarting e2e tests | model={E2E_MODEL} | image={MCP_DOCKER_IMAGE}\n")
@@ -458,6 +464,8 @@ def main() -> None:
                     state["delete_profile_uid"] = extract_uid(
                         agent_output, "DELETE_PROFILE_UID"
                     )
+                elif test_case.name == "list_packs":
+                    state["latest_pack_uid"] = extract_uid(agent_output, "PACK_UID")
 
     # 5. Print summary table.
     print("\n--- E2E Test Results ---")
