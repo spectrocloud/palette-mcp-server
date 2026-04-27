@@ -102,6 +102,7 @@ def test_create_mcp_registers_safe_tools_and_sets_session_context(monkeypatch):
         "gather_or_delete_clusters",
         "getKubeconfig",
         "search_and_manage_resource_tags",
+        "search_gather_packs",
     ]
     assert mcp.session_context.get_host() == "palette.example.com"
     assert mcp.session_context.get_api_key() == "my-key"

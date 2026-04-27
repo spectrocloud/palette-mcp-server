@@ -25,17 +25,13 @@ def _ctx(api_key: str = "test-api-key"):
 
 
 def test_invalid_action_returns_error():
-    result = asyncio.run(
-        packs.search_gather_packs(_ctx(), action="delete")
-    )
+    result = asyncio.run(packs.search_gather_packs(_ctx(), action="delete"))
     assert result["isError"] is True
     assert "Invalid action" in result["content"][0]["text"]
 
 
 def test_get_without_pack_uid_returns_error():
-    result = asyncio.run(
-        packs.search_gather_packs(_ctx(), action="get")
-    )
+    result = asyncio.run(packs.search_gather_packs(_ctx(), action="get"))
     assert result["isError"] is True
     assert "pack_uid" in result["content"][0]["text"]
 
@@ -45,13 +41,18 @@ def test_compact_none_normalized_to_true(monkeypatch):
 
     async def fake_search(palette_host, headers, pack_name, compact):
         seen["compact"] = compact
-        return {"packs": {"items": [], "returned_count": 0, "total_count": 0, "compact": compact}}
+        return {
+            "packs": {
+                "items": [],
+                "returned_count": 0,
+                "total_count": 0,
+                "compact": compact,
+            }
+        }
 
     monkeypatch.setattr(packs, "_search_packs", fake_search, raising=True)
 
-    result = asyncio.run(
-        packs.search_gather_packs(_ctx(), action="list", compact=None)
-    )
+    result = asyncio.run(packs.search_gather_packs(_ctx(), action="list", compact=None))
     assert result["isError"] is False
     assert seen["compact"] is True
 
@@ -67,12 +68,21 @@ def test_list_routes_to_search_packs(monkeypatch):
     async def fake_search(palette_host, headers, pack_name, compact):
         seen["pack_name"] = pack_name
         seen["compact"] = compact
-        return {"packs": {"items": [], "returned_count": 0, "total_count": 0, "compact": compact}}
+        return {
+            "packs": {
+                "items": [],
+                "returned_count": 0,
+                "total_count": 0,
+                "compact": compact,
+            }
+        }
 
     monkeypatch.setattr(packs, "_search_packs", fake_search, raising=True)
 
     result = asyncio.run(
-        packs.search_gather_packs(_ctx(), action="list", pack_name="nginx", compact=True)
+        packs.search_gather_packs(
+            _ctx(), action="list", pack_name="nginx", compact=True
+        )
     )
     assert result["isError"] is False
     assert seen["pack_name"] == "nginx"
@@ -90,7 +100,9 @@ def test_get_routes_to_get_pack_by_uid(monkeypatch):
     monkeypatch.setattr(packs, "_get_pack_by_uid", fake_get, raising=True)
 
     result = asyncio.run(
-        packs.search_gather_packs(_ctx(), action="get", pack_uid="abc-123", compact=False)
+        packs.search_gather_packs(
+            _ctx(), action="get", pack_uid="abc-123", compact=False
+        )
     )
     assert result["isError"] is False
     assert seen["pack_uid"] == "abc-123"
@@ -112,7 +124,13 @@ def test_compact_pack_list_extracts_spec_fields():
             "cloudTypes": ["all"],
             "addonType": "ingress",
             "registries": [
-                {"uid": "reg-uid-1", "latestPackUid": "pack-uid-1", "latestVersion": "1.15.1", "name": "Public Repo", "scope": "system"},
+                {
+                    "uid": "reg-uid-1",
+                    "latestPackUid": "pack-uid-1",
+                    "latestVersion": "1.15.1",
+                    "name": "Public Repo",
+                    "scope": "system",
+                },
             ],
         }
     }
@@ -122,7 +140,13 @@ def test_compact_pack_list_extracts_spec_fields():
     assert result["layer"] == "addon"
     assert result["type"] == "oci"
     assert result["cloudTypes"] == ["all"]
-    assert result["registries"] == [{"registryUid": "reg-uid-1", "latestPackUid": "pack-uid-1", "latestVersion": "1.15.1"}]
+    assert result["registries"] == [
+        {
+            "registryUid": "reg-uid-1",
+            "latestPackUid": "pack-uid-1",
+            "latestVersion": "1.15.1",
+        }
+    ]
     assert "addonType" not in result
 
 
@@ -167,7 +191,9 @@ def test_compact_pack_get_preserves_all_other_top_level_fields():
         "cloudTypes": ["all"],
         "registryUid": "reg-uid-1",
         "logoUrl": "https://example.com/logo.png",
-        "tags": [{"tag": "1.x", "version": "1.15.1", "packUid": "uid-1", "parentTags": []}],
+        "tags": [
+            {"tag": "1.x", "version": "1.15.1", "packUid": "uid-1", "parentTags": []}
+        ],
         "packValues": [],
     }
     result = _compact_pack_get(pack)
