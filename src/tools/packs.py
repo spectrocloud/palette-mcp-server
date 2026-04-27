@@ -9,7 +9,12 @@ from pydantic import Field
 
 from helpers import build_headers, palette_api_request
 from tracing import create_span, safe_set_input, safe_set_output, safe_set_tool
-from tools.common import MCPResult, get_session_context, mask_sensitive_data, safe_set_span_status
+from tools.common import (
+    MCPResult,
+    get_session_context,
+    mask_sensitive_data,
+    safe_set_span_status,
+)
 
 
 def _compact_pack_list(pack: Dict[str, Any]) -> Dict[str, Any]:
@@ -101,19 +106,27 @@ async def search_gather_packs(
     ctx: Context,
     action: Annotated[
         str,
-        Field(description="The operation to perform: 'list' to search packs, 'get' to retrieve a specific pack by UID. Required."),
+        Field(
+            description="The operation to perform: 'list' to search packs, 'get' to retrieve a specific pack by UID. Required."
+        ),
     ],
     pack_uid: Annotated[
         Optional[str],
-        Field(description="The UID of the pack to retrieve. Required when action is 'get'."),
+        Field(
+            description="The UID of the pack to retrieve. Required when action is 'get'."
+        ),
     ] = None,
     pack_name: Annotated[
         Optional[str],
-        Field(description="Filter packs by display name. Case-insensitive contains match. Used only for 'list' action. Optional."),
+        Field(
+            description="Filter packs by display name. Case-insensitive contains match. Used only for 'list' action. Optional."
+        ),
     ] = None,
     compact: Annotated[
         Optional[bool],
-        Field(description="If True, return a compact payload. For 'list': name, displayName, cloudTypes, layer, type, registry uid/latestVersion. For 'get': all fields except YAML values. Default is True. Optional."),
+        Field(
+            description="If True, return a compact payload. For 'list': name, displayName, cloudTypes, layer, type, registry uid/latestVersion. For 'get': all fields except YAML values. Default is True. Optional."
+        ),
     ] = True,
     project_id: Annotated[
         Optional[str], Field(description="The ID of the project. Optional.")
@@ -131,11 +144,26 @@ async def search_gather_packs(
             name="search_gather_packs",
             description="Search for packs or retrieve a specific pack in Palette. Start with list to search packs by display name, then use get to retrieve a specific pack by UID.",
             parameters={
-                "action": {"type": "string", "description": "The operation: 'list' or 'get'"},
-                "pack_uid": {"type": "string", "description": "The UID of the pack (required for get)"},
-                "pack_name": {"type": "string", "description": "Filter packs by display name (list only)"},
-                "compact": {"type": "boolean", "description": "If True, return compact payload. If False, return full detail. In list, this returns only name, displayName, cloudTypes, layer, type, registry uid/latestVersion. In get, this returns all fields except pack YAML values, including the YAML presets and readme."},
-                "project_id": {"type": "string", "description": "The ID of the project (optional)"},
+                "action": {
+                    "type": "string",
+                    "description": "The operation: 'list' or 'get'",
+                },
+                "pack_uid": {
+                    "type": "string",
+                    "description": "The UID of the pack (required for get)",
+                },
+                "pack_name": {
+                    "type": "string",
+                    "description": "Filter packs by display name (list only)",
+                },
+                "compact": {
+                    "type": "boolean",
+                    "description": "If True, return compact payload. If False, return full detail. In list, this returns only name, displayName, cloudTypes, layer, type, registry uid/latestVersion. In get, this returns all fields except pack YAML values, including the YAML presets and readme.",
+                },
+                "project_id": {
+                    "type": "string",
+                    "description": "The ID of the project (optional)",
+                },
                 "api_key": {"type": "string", "description": "The API key (optional)"},
             },
         )
