@@ -17,6 +17,7 @@ from e2e_helpers import (
     extract_tool_summary,
     extract_uid,
     fix_tool_schemas,
+    get_hello_universe_pack_uid_from_terraform,
     make_step_callback,
     setup_kubectl,
     wait_for_cluster_running,
@@ -27,6 +28,8 @@ from e2e_helpers import (
 # ---------------------------------------------------------------------------
 CLUSTER_PROFILE_NAME = "add-on-profile"
 DELETE_CLUSTER_PROFILE_NAME = "to-be-deleted"
+HELLO_UNIVERSE_PACK_NAME = "hello-universe"
+HELLO_UNIVERSE_PACK_DISPLAY_NAME = "Hello Universe"
 
 CLUSTER_PROFILE_EXPECTED_TAGS = [
     "owner:ai-research-team",
@@ -276,7 +279,39 @@ def build_test_case_factories():
             required_resource_type=None,
             judge_goal=f'"{DELETE_CLUSTER_PROFILE_NAME}" cluster profile was deleted successfully.',
         ),
-        # Step 13 — delete cluster
+        # Step 13 — list packs, find hello-universe by display name
+        lambda _s: E2ETestCase(
+            name="list_packs",
+            prompt=(
+                f'Call search_gather_packs with action="list" and pack_name="{HELLO_UNIVERSE_PACK_DISPLAY_NAME}". '
+                f'Confirm that a pack with the name "{HELLO_UNIVERSE_PACK_NAME}" appears in the results. '
+                f"End your response with exactly: PACK_UID: <latestPackUid from the first registry entry of the matching pack>"
+            ),
+            required_tool="search_gather_packs",
+            required_action="list",
+            required_resource_type=None,
+            judge_goal=f'A pack named "{HELLO_UNIVERSE_PACK_NAME}" is present in the search results and its latestPackUid is reported as PACK_UID.',
+        ),
+        # Step 14 — get hello-universe pack by UID with full detail (compact=False)
+        lambda s: E2ETestCase(
+            name="get_pack",
+            prompt=(
+                f'Call search_gather_packs with action="get", '
+                f'pack_uid="{_uid_or_unknown(s, "hello_universe_pack_uid")}", and compact=False. '
+                f'Confirm the pack name is "{HELLO_UNIVERSE_PACK_NAME}". '
+                f'Confirm that the response includes a non-empty "packValues" array where at least one entry contains a non-empty "values" field (the YAML content). '
+                f'Also confirm that at least one entry in "packValues" contains a non-empty "readme" field.'
+            ),
+            required_tool="search_gather_packs",
+            required_action="get",
+            required_resource_type=None,
+            judge_goal=(
+                f'Pack name "{HELLO_UNIVERSE_PACK_NAME}" is confirmed, '
+                f'"packValues" is present and non-empty, at least one entry has a non-empty "values" (YAML), '
+                f'and at least one entry has a non-empty "readme".'
+            ),
+        ),
+        # Step 15 — delete cluster
         lambda s: E2ETestCase(
             name="delete_cluster",
             prompt=(
@@ -356,6 +391,7 @@ Reason: <one sentence explaining what was missing or wrong>"""
 def main() -> None:
     # 1. Register the KinD cluster with Palette, get the UID from terraform output.
     cluster_uid = setup_kubectl()
+    hello_universe_pack_uid = get_hello_universe_pack_uid_from_terraform()
 
     # 2. Wait for the cluster to reach Running state before launching the agent.
     wait_for_cluster_running(cluster_uid)
@@ -366,11 +402,12 @@ def main() -> None:
     results: list[E2ETestResult] = []
 
     # Shared state: UIDs discovered by earlier steps and passed to later ones.
-    # cluster_uid is pre-populated from terraform output — the name is dynamic.
+    # cluster_uid and hello_universe_pack_uid are pre-populated from terraform output.
     state: dict[str, str | None] = {
         "profile_uid": None,
         "cluster_uid": cluster_uid,
         "delete_profile_uid": None,
+        "hello_universe_pack_uid": hello_universe_pack_uid,
     }
 
     print(f"\nStarting e2e tests | model={E2E_MODEL} | image={MCP_DOCKER_IMAGE}\n")
