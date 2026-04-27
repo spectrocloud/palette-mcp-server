@@ -99,7 +99,9 @@ def build_test_case_factories():
     Each factory is called immediately before its test case runs, so UIDs
     discovered by earlier steps are available when the prompt is built.
 
-    State keys: profile_uid, cluster_uid, delete_profile_uid.
+    State keys: profile_uid, cluster_uid, delete_profile_uid,
+    hello_universe_pack_uid (pre-populated from Terraform), latest_pack_uid
+    (discovered from list_packs and used by get_pack).
     """
 
     def _uid_or_unknown(state, key):
