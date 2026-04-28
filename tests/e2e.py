@@ -361,7 +361,7 @@ Agent output:
 {agent_output}
 
 A step PASSES when BOTH hold:
-1. The required tool call appears in the tool summary with status OK (tool name, action, and resource_type must all match).
+1. The required tool call appears in the tool summary with status OK. The tool name and action must match. If the required call includes resource_type, it must also match; if it does not include resource_type, ignore resource_type in the tool summary.
 2. The goal was achieved — confirmed by the response snippet AND/OR the agent output.
 
 Important: API responses can be large and the response snippet may be truncated.
