@@ -61,6 +61,15 @@ def get_cluster_uid_from_terraform() -> str:
     return cluster_uid
 
 
+def get_hello_universe_pack_uid_from_terraform() -> str:
+    """Read the hello-universe pack UID from terraform output."""
+    outputs = _read_terraform_outputs()
+    pack_uid = (outputs.get("hello_universe_pack_uid") or {}).get("value", "").strip()
+    if not pack_uid:
+        raise RuntimeError("terraform output returned empty hello_universe_pack_uid.")
+    return pack_uid
+
+
 def setup_kubectl() -> str:
     """Register the KinD cluster with Palette and return the cluster UID."""
     print("Fetching terraform outputs...")

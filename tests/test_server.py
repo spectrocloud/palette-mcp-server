@@ -38,6 +38,7 @@ def test_server_disables_tracing_on_malformed_phoenix_endpoint(monkeypatch):
     tools_mod.gather_or_delete_clusterprofiles = lambda *args, **kwargs: None
     tools_mod.getKubeconfig = lambda *args, **kwargs: None
     tools_mod.search_and_manage_resource_tags = lambda *args, **kwargs: None
+    tools_mod.search_gather_packs = lambda *args, **kwargs: None
 
     monkeypatch.setitem(sys.modules, "fastmcp", fastmcp_mod)
     monkeypatch.setitem(sys.modules, "fastmcp.utilities", fastmcp_util_mod)

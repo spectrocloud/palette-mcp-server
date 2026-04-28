@@ -7,3 +7,9 @@ data "spectrocloud_pack_simple" "hello-universe" {
   type         = "container"
   registry_uid = "64eaff5630402973c4e1856a"
 }
+
+output "hello_universe_pack_uid" {
+  value       = data.spectrocloud_pack_simple.hello-universe.id
+  sensitive   = false
+  description = "The UID of the hello-universe pack, used by e2e tests for search_gather_packs."
+}
