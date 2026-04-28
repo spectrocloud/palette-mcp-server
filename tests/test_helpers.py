@@ -69,3 +69,14 @@ def test_write_admin_kubeconfig_uses_dot_admin_suffix(tmp_path, monkeypatch):
     monkeypatch.setattr("helpers.tempfile.gettempdir", lambda: str(tmp_path))
     path = write_kubeconfig_to_temp("abc123", "content", is_admin=True)
     assert path.endswith("abc123.admin.kubeconfig")
+
+
+def test_write_kubeconfig_fixes_permissions_on_existing_file(tmp_path, monkeypatch):
+    monkeypatch.setattr("helpers.tempfile.gettempdir", lambda: str(tmp_path))
+    kubeconfig_dir = tmp_path / "kubeconfig"
+    kubeconfig_dir.mkdir()
+    existing = kubeconfig_dir / "test-uid.kubeconfig"
+    existing.write_text("old content")
+    os.chmod(existing, 0o644)
+    path = write_kubeconfig_to_temp("test-uid", "new content")
+    assert oct(os.stat(path).st_mode & 0o777) == oct(0o600)
