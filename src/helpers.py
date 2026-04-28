@@ -34,7 +34,9 @@ def write_kubeconfig_to_temp(
         filename = f"{cluster_uid}.kubeconfig"
 
     kubeconfig_path = os.path.join(kubeconfig_dir, filename)
-    with open(kubeconfig_path, "w") as f:
+    fd = os.open(kubeconfig_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, "w") as f:
         f.write(kubeconfig_content)
     return kubeconfig_path
 
