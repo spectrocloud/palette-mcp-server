@@ -138,8 +138,8 @@ jobs:
         run: uv run --group e2e python tests/e2e.py
         env:
           MCP_IMAGE: public.ecr.aws/palette-ai/palette-mcp-server:test
-          E2E_MODEL: gpt-4o
-          JUDGE_MODEL: gpt-4o
+          E2E_MODEL: gpt-5.4-mini
+          JUDGE_MODEL: gpt-5.4-mini
           SPECTROCLOUD_APIKEY: ${{ secrets.SPECTROCLOUD_APIKEY }}
           SPECTROCLOUD_HOST: ${{ secrets.SPECTROCLOUD_HOST }}
           SPECTROCLOUD_PROJECT_UID: ${{ secrets.SPECTROCLOUD_DEFAULT_PROJECT_ID }}
