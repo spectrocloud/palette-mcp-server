@@ -19,7 +19,7 @@ The Palette MCP server provides several tools for interacting with Palette. Seve
 | `gather_or_delete_clusterprofiles` | Gather information about cluster profiles or delete a cluster profile in Palette.                                                                         | Yes                        | Delete            |
 | `getKubeconfig`                    | Download the kubeconfig or admin kubeconfig for a cluster.                                                                                                | No                         | None              |
 | `search_and_manage_resource_tags`  | Search and manage tag lifecycle operations across the following Palette resources: clusters, cluster profiles, cluster templates, edge hosts, and policy. | Yes                        | Delete            |
-| `search_gather_packs`              | Search for packs by display name or retrieve a specific pack's details by using its ID.   | No                         | None              |
+| `search_gather_packs`              | Search for packs by display name or retrieve a specific pack's details by using its ID.                                                                   | No                         | None              |
 
 The list above will continue to grow as we add more tools to the Palette MCP server.
 
@@ -165,6 +165,14 @@ The Palette MCP server provides tools to access kubeconfig files for clusters. Y
 
 > [!WARNING]
 > The folder you use to mount to the container will be wiped when the container is stopped and started again. The Palette MCP server will automatically remove the kubeconfig files from its /tmp/kubeconfig folder.
+
+Kubeconfig files are written with restricted permissions `0o600`. On **macOS and Windows**, Docker Desktop and Podman remap container UIDs to your host user automatically, so files are accessible without extra steps. On **Linux with rootful Docker or Podman**, files are owned by `root` and your host user may not be able to read the kubeconfig files. You can fix this by issuing the following command:
+
+```bash
+ sudo chown $(id -u):$(id -g) /your/kubeconfig/path/to/kubeconfig/<cluster-uid>.kubeconfig
+```
+
+You can also avoid this entirely by starting the container with `--user $(id -u):$(id -g)`.
 
 Once you have the kubeconfig file locally, assuming your application with an LLM has access to your local filesystem and a shell environment, you can have the application use the kubeconfig file to access the cluster. For example, if you are using Cursor, you can ask it to use the kubeconfig file to with the `kubectl` command to access the cluster.
 
