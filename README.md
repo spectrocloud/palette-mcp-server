@@ -161,7 +161,7 @@ To prevent accidental use of dangerous actions, the Palette MCP server requires 
 
 ### Accessing Kubeconfig Files
 
-The Palette MCP server provides tools to access kubeconfig files for clusters. You can access the kubeconfig files by mounting a local folder to the container with the `--mount` flag in the MCP configuration. In the container, all kubeconfig files are stored in the `/tmp/kubeconfig` folder. If you use the `getKubeconfig` tool (with `admin_config=True` for admin kubeconfig), the kubeconfig file will be stored in the `/tmp/kubeconfig` folder. The filename will have the cluster's UID as the name, for example, `68669fcfee517a7f9a91a9e5.kubeconfig`. Admin kubeconfig files have the suffix `-admin` in the filename, for example, `68669fcfee517a7f9a91a9e5-admin.kubeconfig`.
+The Palette MCP server provides tools to access kubeconfig files for clusters. You can access the kubeconfig files by mounting a local folder to the container with the `--mount` flag in the MCP configuration. In the container, all kubeconfig files are stored in the `/tmp/kubeconfig` folder. If you use the `getKubeconfig` tool (with `admin_config=True` for admin kubeconfig), the kubeconfig file will be stored in the `/tmp/kubeconfig` folder. The filename will have the cluster's UID as the name, for example, `68669fcfee517a7f9a91a9e5.kubeconfig`. Admin kubeconfig files have the suffix `.admin` in the filename, for example, `68669fcfee517a7f9a91a9e5.admin.kubeconfig`.
 
 > [!WARNING]
 > The folder you use to mount to the container will be wiped when the container is stopped and started again. The Palette MCP server will automatically remove the kubeconfig files from its /tmp/kubeconfig folder.

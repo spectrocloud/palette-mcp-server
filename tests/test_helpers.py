@@ -2,13 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from pathlib import Path
+import os
 import sys
-
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from helpers import normalize_phoenix_endpoint_for_container
+from helpers import normalize_phoenix_endpoint_for_container, write_kubeconfig_to_temp
 
 
 def test_rewrites_localhost_for_docker(monkeypatch):
@@ -48,3 +47,25 @@ def test_does_not_rewrite_non_localhost(monkeypatch):
     endpoint = "http://example.com:6006/v1/traces"
     got = normalize_phoenix_endpoint_for_container(endpoint)
     assert got == endpoint
+
+
+def test_write_kubeconfig_creates_file_with_restricted_permissions(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr("helpers.tempfile.gettempdir", lambda: str(tmp_path))
+    path = write_kubeconfig_to_temp("test-uid", "kubeconfig-content")
+    assert oct(os.stat(path).st_mode & 0o777) == oct(0o600)
+
+
+def test_write_admin_kubeconfig_creates_file_with_restricted_permissions(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr("helpers.tempfile.gettempdir", lambda: str(tmp_path))
+    path = write_kubeconfig_to_temp("test-uid", "kubeconfig-content", is_admin=True)
+    assert oct(os.stat(path).st_mode & 0o777) == oct(0o600)
+
+
+def test_write_admin_kubeconfig_uses_dot_admin_suffix(tmp_path, monkeypatch):
+    monkeypatch.setattr("helpers.tempfile.gettempdir", lambda: str(tmp_path))
+    path = write_kubeconfig_to_temp("abc123", "content", is_admin=True)
+    assert path.endswith("abc123.admin.kubeconfig")
