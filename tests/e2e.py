@@ -50,7 +50,7 @@ E2E_TEST_TAG = "e2e-test:true"
 # ---------------------------------------------------------------------------
 
 E2E_MODEL = os.environ.get("E2E_MODEL", "gpt-4o")
-JUDGE_MODEL = os.environ.get("JUDGE_MODEL", "gpt-4o-mini")
+JUDGE_MODEL = os.environ.get("JUDGE_MODEL", "gpt-5.4-mini")
 
 # System prompt for the tester agent: constrains it to exactly one tool call per step.
 AGENT_SYSTEM_PROMPT = (
@@ -307,7 +307,8 @@ def build_test_case_factories():
                 f'pack_uid="{_uid_or_unknown(s, "latest_pack_uid")}", and compact=False. '
                 f'Confirm the pack name is "{HELLO_UNIVERSE_PACK_NAME}". '
                 f'Confirm that the response includes a non-empty "packValues" array where at least one entry contains a non-empty "values" field (the YAML content). '
-                f'Also confirm that at least one entry in "packValues" contains a non-empty "readme" field.'
+                f'Also confirm that at least one entry in "packValues" contains a non-empty "readme" field. '
+                f"Quote the first 50 characters of the readme in your response."
             ),
             required_tool="search_gather_packs",
             required_action="get",
@@ -360,7 +361,7 @@ Agent output:
 {agent_output}
 
 A step PASSES when BOTH hold:
-1. The required tool call appears in the tool summary with status OK (tool name, action, and resource_type must all match).
+1. The required tool call appears in the tool summary with status OK. The tool name and action must match. If the required call includes resource_type, it must also match; if it does not include resource_type, ignore resource_type in the tool summary.
 2. The goal was achieved — confirmed by the response snippet AND/OR the agent output.
 
 Important: API responses can be large and the response snippet may be truncated.
