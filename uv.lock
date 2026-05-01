@@ -1416,7 +1416,7 @@ dev = [
 ]
 e2e = [
     { name = "openai", specifier = ">=1.0.0" },
-    { name = "smolagents", extras = ["mcp"], specifier = ">=1.14.0" },
+    { name = "smolagents", extras = ["mcp"], specifier = ">=1.24.0" },
 ]
 
 [[package]]
